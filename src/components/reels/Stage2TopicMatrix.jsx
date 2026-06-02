@@ -104,13 +104,13 @@ function TopicRow({ topic, index, isSelected, isDisabled, onSelect, color, critC
               className="inline-flex items-center rounded px-1 py-0.5 text-[9px] font-bold tracking-wide"
               style={{
                 background:
-                  topic.anchor_type === "A" ? (isDark ? "#38bdf830" : "#0369a130") :
-                  topic.anchor_type === "B" ? (isDark ? "#f59e0b30" : "#b4530930") :
-                                              (isDark ? "#a78bfa30" : "#6d28d930"),
+                  topic.anchor_type === "A" ? critColors.demand + "30" :
+                  topic.anchor_type === "B" ? critColors.gap    + "30" :
+                                              critColors.social  + "30",
                 color:
-                  topic.anchor_type === "A" ? (isDark ? "#38bdf8" : "#0369a1") :
-                  topic.anchor_type === "B" ? (isDark ? "#f59e0b" : "#b45309") :
-                                              (isDark ? "#a78bfa" : "#6d28d9"),
+                  topic.anchor_type === "A" ? critColors.demand :
+                  topic.anchor_type === "B" ? critColors.gap    :
+                                              critColors.social,
               }}
               title={topic.anchor_note ?? `Anchor ${topic.anchor_type}`}
             >
