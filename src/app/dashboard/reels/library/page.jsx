@@ -18,7 +18,7 @@ export default function ReelsLibraryPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link href="/dashboard/reels" className="flex items-center gap-1.5 text-sm text-faint hover:text-cyan transition">
+        <Link href="/dashboard/reels" className="flex items-center gap-1.5 text-sm text-faint hover:text-[#2563eb] transition">
           <ArrowLeft size={15} /> Back to Reels
         </Link>
       </div>
@@ -32,7 +32,7 @@ export default function ReelsLibraryPage() {
         <div className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))] p-12 text-center">
           <Bookmark size={32} className="mx-auto mb-3 text-faint" />
           <p className="text-sm text-faint">No saved scripts yet.</p>
-          <Link href="/dashboard/reels" className="mt-3 inline-block text-sm font-semibold text-cyan hover:underline">
+          <Link href="/dashboard/reels" className="mt-3 inline-block text-sm font-semibold text-[#2563eb] hover:underline">
             Generate a Reel and save it →
           </Link>
         </div>

@@ -33,10 +33,34 @@ No markdown, no explanation. JSON only.`;
 
 // ── Stage 3: Medical Quick-Check ─────────────────────────────────────────────
 
-export function buildMedCheckPrompt(topic, contentType) {
+/**
+ * @param {string} topic
+ * @param {string} contentType
+ * @param {object|null} pubmedEvidence - real PubMed evidence report from getEvidenceReport()
+ */
+export function buildMedCheckPrompt(topic, contentType, pubmedEvidence = null) {
+  // Build a block of real PubMed articles if available
+  const evidenceBlock = pubmedEvidence
+    ? `
+REAL PUBMED EVIDENCE (already retrieved — use ONLY these citations, do NOT invent PMIDs):
+Research Density: ${pubmedEvidence.evidence.totalCount} PubMed articles found (since 2015)
+Evidence Label: ${pubmedEvidence.evidence.label} (score ${pubmedEvidence.evidence.score}/100)
+Top Articles:
+${pubmedEvidence.topArticles.map((a, i) =>
+  `${i + 1}. ${a.title} (${a.year ?? "n/a"}) — ${a.journal} — PMID: ${a.pmid} — ${a.url}`
+).join("\n")}
+
+Use the evidence_score (${pubmedEvidence.evidence.score}) as the primary basis for your scoring.
+If the PubMed score is 70+, lean toward "safe". 40-69 = "caution". Below 40 = "blocked".
+Your pubmed_references MUST use the real titles and PMIDs above — do NOT fabricate new ones.
+`
+    : `
+(No real PubMed data available — use your medical knowledge to estimate the evidence_score.)
+`;
+
   return `TOPIC: ${topic}
 CONTENT TYPE: ${contentType}
-
+${evidenceBlock}
 You are the Medical Safety Agent. Analyze this health topic for a 60-second Reel script.
 
 Return ONLY this JSON:
@@ -45,7 +69,7 @@ Return ONLY this JSON:
   "safety_status": "safe" | "caution" | "blocked",
   "flagged_claims": ["claim 1", "claim 2"],
   "suggested_rephrases": { "original claim": "safer version" },
-  "pubmed_references": ["Title (Year) - PMID: XXXXX"],
+  "pubmed_references": ["Title (Year) - Journal — PMID: XXXXX"],
   "safety_note": "One sentence for the creator about what to be careful about"
 }
 
@@ -54,7 +78,7 @@ Rules:
 - Score 40-69 = publish with caution disclaimer
 - Score below 40 = block and require rephrase
 - Never flag factual scientific statements. Only flag absolute cure/treatment claims.
-- pubmed_references: max 3 entries
+- pubmed_references: use the real articles provided above (max 3 entries); if none provided use your knowledge
 - flagged_claims: empty array if none
 
 No markdown, no explanation. JSON only.`;

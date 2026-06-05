@@ -31,23 +31,23 @@ const WEAKNESS_POOL = {
 const REFRAME_PATTERNS = {
   myth: {
     title_pattern: (kw) =>
-      `I've told 600 Tamil Nadu diabetic patients the truth about ${kw} — here is what mainstream medicine gets wrong`,
-    why: "Grounds the myth-bust in real patient community data — something no generic creator can replicate — and explicitly signals Doctor Farmer's clinical authority.",
+      `The ${kw} truth mainstream medicine skips — what the published research actually shows`,
+    why: "Grounds the myth-bust in peer-reviewed research — something generic creators rarely cite — and signals Doctor Farmer's clinical authority without unverifiable patient-count claims.",
   },
   problem: {
     title_pattern: (kw) =>
-      `Stop ${kw}ing this way — the mistake 80% of my South Indian diabetic patients make without knowing`,
-    why: "Converts a generic problem reveal into a patient-frequency signal, creating urgency and a direct path to the MHS consultation inquiry.",
+      `Stop ${kw}ing this way — the silent mistake most South Indian diabetics make without knowing`,
+    why: "Converts a generic problem reveal into an urgency signal grounded in clinical observation, creating a direct path to the MHS consultation inquiry.",
   },
   faq: {
     title_pattern: (kw) =>
-      `${kw} — what I tell my 1,000+ Tamil Nadu patients every single day that Google cannot answer`,
-    why: "Transforms a cold FAQ into a warm patient-community signal, driving comment engagement and consultation inquiries from viewers who want the same answer.",
+      `${kw} — the honest clinical answer Google cannot give you, from a practising doctor`,
+    why: "Transforms a cold FAQ into a doctor-authority signal, driving comment engagement and consultation inquiries from viewers who want the same answer.",
   },
   contrarian: {
     title_pattern: (kw) =>
-      `Everything you were told about ${kw} is wrong — I have 600 patient reversals to prove it`,
-    why: "Backs the contrarian position with patient outcome data, giving Doctor Farmer legal and clinical credibility that no fitness influencer can replicate or challenge.",
+      `Everything you were told about ${kw} is incomplete — here is what the clinical evidence proves`,
+    why: "Backs the contrarian position with published evidence, giving Doctor Farmer clinical credibility that no fitness influencer can replicate or challenge.",
   },
   clinical: {
     title_pattern: (kw) =>
@@ -70,11 +70,11 @@ const OPENING_LINES = {
   ],
   faq: [
     "என் patients எல்லாரும் ஒரே question கேக்கிறாங்க — and today I am answering it for all of you at once.",
-    "1,000+ Tamil Nadu diabetics asked me this exact question. Here is the honest clinical answer — not what Google tells you.",
+    "Tamil Nadu diabetics ask me this exact question every week. Here is the honest clinical answer — not what Google tells you.",
     "Patients ask me this in every consultation. Today I am saying it publicly so you do not have to ask alone.",
   ],
   contrarian: [
-    "I am a doctor. I am supposed to support mainstream advice. But after 600 patient reversals — I cannot stay quiet.",
+    "I am a doctor. I am supposed to support mainstream advice. But after years of treating reversals — I cannot stay quiet.",
     "Everything you read online about this is incomplete. I know because my patients follow that advice and come to me worse.",
     "Your wellness influencer told you one thing. My patients' lab reports tell a different story.",
   ],
@@ -107,15 +107,36 @@ function pickWeakness(demand, social, competition_gap, fit) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-function buildVerify(title) {
-  const words = title.replace(/[^a-zA-Z0-9 ]/g, "").split(" ").filter((w) => w.length > 3);
-  const kw1   = (words[0] ?? "fasting").toLowerCase();
-  const kw2   = (words[1] ?? "diabetes").toLowerCase();
+// Stopwords that must never become search keywords (caused "diabetes does India")
+const VERIFY_STOPWORDS = new Set([
+  "what", "when", "where", "which", "while", "your", "yours", "this", "that",
+  "these", "those", "does", "doing", "done", "have", "with", "without", "from",
+  "into", "undo", "they", "them", "then", "than", "here", "there", "about",
+  "after", "before", "during", "every", "their", "more", "most", "much", "such",
+  "will", "would", "could", "should", "been", "being", "hours", "hour", "thing",
+  "things", "actually", "really", "still", "just", "also", "even", "only",
+]);
+
+function buildVerify(title, keyword) {
+  // Extract meaningful keywords from the title — skip stopwords & short words
+  const meaningful = title
+    .replace(/[^a-zA-Z0-9 ]/g, " ")
+    .split(/\s+/)
+    .map(w => w.toLowerCase())
+    .filter(w => w.length > 3 && !VERIFY_STOPWORDS.has(w));
+
+  // Anchor every query on the real keyword (e.g. "diabetes") when provided
+  const base = (keyword || meaningful[0] || "diabetes").toLowerCase().trim();
+  // Pick the most relevant secondary term — prefer a substantive word (≥5 chars,
+  // e.g. "fasting"/"eating") over weak 4-letter words like "late"
+  const candidates = meaningful.filter(w => w !== base && !base.includes(w));
+  const modifier = candidates.find(w => w.length >= 5) || candidates[0] || "fasting";
+
   return {
-    ubersuggest:       `${kw1} for Indian diabetics`,
-    answer_the_public: `${kw1} ${kw2} India`,
-    google_trends:     `${kw1} vs intermittent fasting vs lifestyle reversal`,
-    seo_angle:         `${kw1} diet plan for South Indian diabetics 2024`,
+    ubersuggest:    `${base} ${modifier} India`,
+    reddit_search:  `${base} ${modifier}`,
+    google_trends:  `${base} ${modifier} vs ${base} diet`,
+    seo_angle:      `${base} ${modifier} South Indian diet plan`,
   };
 }
 
@@ -167,12 +188,18 @@ function buildReframe(topic, tabId, originalScore) {
  * @param {string} tabId  — "myth" | "problem" | "faq" | "contrarian" | "clinical"
  * @returns {object}
  */
-export function generateMockValidation(topic, tabId) {
+export function generateMockValidation(topic, tabId, keyword = null) {
   const { demand, social, competition_gap, fit, score } = topic;
+
+  // Derive the anchor keyword from the title's first meaningful word if not given
+  const derivedKeyword = keyword || (topic.title || "")
+    .replace(/[^a-zA-Z0-9 ]/g, " ")
+    .split(/\s+/)
+    .find(w => w.length > 3) || "diabetes";
 
   const biggest_weakness = pickWeakness(demand, social, competition_gap, fit);
   const reframe          = buildReframe(topic, tabId, score);
-  const verify           = buildVerify(topic.title);
+  const verify           = buildVerify(topic.title, derivedKeyword);
   const opening_line     = buildOpeningLine(tabId);
 
   return {

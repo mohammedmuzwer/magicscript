@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Menu, Zap, LogOut, UserCircle, CreditCard, ChevronDown, Loader2 } from "lucide-react";
+import { Menu, Loader2 } from "lucide-react";
 import Sidebar from "./sidebar";
-import ThemeToggle from "@/components/ui/theme-toggle";
+import NavActions from "@/components/ui/nav-actions";
 import { useAuth } from "@/lib/auth-context";
 
 const TITLES = {
@@ -22,15 +22,14 @@ const TITLES = {
 };
 
 // Pages that manage their own full-screen layout (no sidebar / topbar / container)
-const FULLSCREEN_ROUTES = ["/dashboard/workflow-builder", "/dashboard/generate", "/dashboard/lab", "/dashboard/agents", "/dashboard/reels", "/dashboard/podcast", "/dashboard/history", "/dashboard/library"];
+const FULLSCREEN_ROUTES = ["/dashboard/workflow-builder", "/dashboard/generate", "/dashboard/lab", "/dashboard/agents", "/dashboard/reels", "/dashboard/youtube", "/dashboard/podcast", "/dashboard/history", "/dashboard/library"];
 const FULLSCREEN_REGEX  = /^\/dashboard\/workspace\/[^/]+\/(workflow|pipeline)\//;
 
 export default function DashboardShell({ children }) {
-  const { user, ready, logout } = useAuth();
+  const { user, ready } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     if (ready && !user) router.replace("/login");
@@ -45,7 +44,7 @@ export default function DashboardShell({ children }) {
   if (!ready) {
     return (
       <div className="grid min-h-screen place-items-center bg-[rgb(var(--bg))]">
-        <Loader2 size={24} className="animate-spin text-cyan" />
+        <Loader2 size={24} className="animate-spin text-[#2563eb]" />
       </div>
     );
   }
@@ -81,52 +80,7 @@ export default function DashboardShell({ children }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Link
-              href="/dashboard/billing"
-              className="hidden items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel))] px-2.5 py-1.5 text-xs font-semibold sm:flex"
-            >
-              <Zap size={13} className="text-cyan" />
-              <span className="text-cyan">{user.credits}</span>
-              <span className="text-faint">credits</span>
-            </Link>
-            <ThemeToggle />
-            <div className="relative">
-              <button
-                onClick={() => setMenuOpen((v) => !v)}
-                className="flex items-center gap-2 rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))] py-1 pl-1 pr-2"
-              >
-                <Avatar user={user} />
-                <ChevronDown size={14} className="hidden text-faint sm:block" />
-              </button>
-              {menuOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                  <div className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-xl border border-[rgb(var(--border))] glass-strong p-1.5 shadow-card">
-                    <div className="border-b border-[rgb(var(--border))] px-3 py-2.5">
-                      <div className="text-sm font-semibold">{user.name}</div>
-                      <div className="truncate text-xs text-faint">{user.email}</div>
-                    </div>
-                    <MenuLink href="/dashboard/profile" icon={UserCircle} onClick={() => setMenuOpen(false)}>
-                      Profile
-                    </MenuLink>
-                    <MenuLink href="/dashboard/billing" icon={CreditCard} onClick={() => setMenuOpen(false)}>
-                      Subscription
-                    </MenuLink>
-                    <button
-                      onClick={() => {
-                        logout();
-                        router.push("/");
-                      }}
-                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-rose-300 transition hover:bg-rose-500/10"
-                    >
-                      <LogOut size={16} /> Log out
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
+          <NavActions />
         </header>
 
         <main className="mx-auto max-w-7xl px-4 py-6 lg:px-7 lg:py-8">{children}</main>

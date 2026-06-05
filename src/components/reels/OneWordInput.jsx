@@ -52,12 +52,12 @@ export default function OneWordInput({ onAngleSelect }) {
           onChange={(e) => setWord(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleExpand()}
           placeholder='Type one word — e.g. "insulin", "cortisol", "fasting"'
-          className="flex-1 rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))] px-4 py-2.5 text-sm outline-none transition placeholder:text-faint focus:border-cyan/50 focus:ring-1 focus:ring-cyan/20"
+          className="flex-1 rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))] px-4 py-2.5 text-sm outline-none transition placeholder:text-faint focus:border-[#2563eb]/50 focus:ring-1 focus:ring-[#2563eb]/20"
         />
         <button
           onClick={handleExpand}
           disabled={!word.trim() || loading}
-          className="flex items-center gap-1.5 rounded-xl bg-cyan px-4 py-2.5 text-sm font-semibold text-navy-950 transition hover:brightness-110 disabled:opacity-40"
+          className="flex items-center gap-1.5 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-navy-950 transition hover:brightness-110 disabled:opacity-40"
         >
           {loading ? <Loader2 size={15} className="animate-spin" /> : <Zap size={15} />}
           Expand ({REELS_CREDITS.ONE_WORD_EXPAND}cr)
@@ -81,13 +81,13 @@ export default function OneWordInput({ onAngleSelect }) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.08 }}
                 onClick={() => onAngleSelect(a.angle)}
-                className="group rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))] p-3.5 text-left transition hover:border-cyan/40 hover:bg-cyan/5"
+                className="group rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))] p-3.5 text-left transition hover:border-[#2563eb]/40 hover:bg-[#2563eb]/5"
               >
                 <div className="mb-1 flex items-center justify-between">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-faint">{a.type}</span>
-                  <span className="text-[10px] font-semibold text-cyan">🔥 {a.virality_score}/10</span>
+                  <span className="text-[10px] font-semibold text-[#2563eb]">🔥 {a.virality_score}/10</span>
                 </div>
-                <p className="text-sm font-semibold leading-snug group-hover:text-cyan transition">{a.angle}</p>
+                <p className="text-sm font-semibold leading-snug group-hover:text-[#2563eb] transition">{a.angle}</p>
                 <p className="mt-1.5 text-xs text-faint italic">"{a.hook_preview}"</p>
               </motion.button>
             ))}

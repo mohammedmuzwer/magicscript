@@ -21,11 +21,11 @@ const CATEGORIES = [
     key: "problem_reveal",
     label: "Problem Reveal",
     icon: "🔍",
-    color: "#06b6d4",
-    bg: "bg-cyan-500/8",
-    border: "border-cyan-500/25",
-    headerBg: "bg-cyan-500/12",
-    badge: "text-cyan-400",
+    color: "#2563eb",
+    bg: "bg-[#2563eb]/8",
+    border: "border-[#2563eb]/25",
+    headerBg: "bg-[#2563eb]/12",
+    badge: "text-[#2563eb]",
   },
   {
     key: "education_drop",
@@ -62,7 +62,7 @@ const CATEGORIES = [
 // ── Score band helpers ────────────────────────────────────────────────────────
 function scoreBand(score) {
   if (score >= 90) return { label: "Consensus",  bar: "bg-emerald-500", text: "text-emerald-400" };
-  if (score >= 70) return { label: "Strong",     bar: "bg-cyan-500",    text: "text-cyan-400"    };
+  if (score >= 70) return { label: "Strong",     bar: "bg-[#2563eb]",    text: "text-[#2563eb]"    };
   if (score >= 50) return { label: "Emerging",   bar: "bg-amber-500",   text: "text-amber-400"   };
   return              { label: "Fringe",      bar: "bg-rose-500",    text: "text-rose-400"    };
 }
@@ -161,7 +161,7 @@ function CategoryColumn({ cat, ideas, onSelect }) {
 function ScoreLegend() {
   const items = [
     { label: "Consensus (90–100)", color: "bg-emerald-500" },
-    { label: "Strong (70–89)",     color: "bg-cyan-500"    },
+    { label: "Strong (70–89)",     color: "bg-[#2563eb]"    },
     { label: "Emerging (50–69)",   color: "bg-amber-500"   },
     { label: "Fringe (<50)",       color: "bg-rose-500"    },
   ];
@@ -241,7 +241,7 @@ export default function IdeaMatrix({ onTopicSelect }) {
             onChange={(e) => setKeyword(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !loading && handleGenerate()}
             placeholder="Enter a keyword or health topic — e.g. insulin, thyroid, PCOS, gut health..."
-            className="w-full rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))] px-4 py-2.5 text-sm outline-none transition placeholder:text-faint focus:border-cyan/50 focus:ring-1 focus:ring-cyan/20"
+            className="w-full rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))] px-4 py-2.5 text-sm outline-none transition placeholder:text-faint focus:border-[#2563eb]/50 focus:ring-1 focus:ring-[#2563eb]/20"
           />
         </div>
         <motion.button
@@ -249,7 +249,7 @@ export default function IdeaMatrix({ onTopicSelect }) {
           whileTap={{ scale: 0.98 }}
           onClick={handleGenerate}
           disabled={loading || !keyword.trim()}
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan to-electric px-5 py-2.5 text-sm font-bold text-navy-950 transition disabled:opacity-40"
+          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#2563eb] to-electric px-5 py-2.5 text-sm font-bold text-navy-950 transition disabled:opacity-40"
         >
           {loading ? (
             <Loader2 size={15} className="animate-spin" />
@@ -307,7 +307,7 @@ export default function IdeaMatrix({ onTopicSelect }) {
             {/* Stats + legend row */}
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <span className="rounded-lg bg-cyan/10 px-3 py-1 text-xs font-bold text-cyan">
+                <span className="rounded-lg bg-[#2563eb]/10 px-3 py-1 text-xs font-bold text-[#2563eb]">
                   ✨ {totalIdeas} ideas for "{keyword}"
                 </span>
                 {mode === "demo" && (

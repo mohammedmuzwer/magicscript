@@ -3,10 +3,12 @@
 import { motion } from "framer-motion";
 import { Check, Loader2, ArrowRight } from "lucide-react";
 
+// Stage 4 = script generation only. Medical verification (PubMed + WHO) happens
+// in Stage 3; here it is shown as an INHERITED pass-through, never re-scanned.
 const STEPS = [
   { key: "expand",   icon: "🔍", label: "Topic Expansion",    cr: 1,  log: "Unpacking your topic angle..." },
   { key: "audience", icon: "👥", label: "Audience Profiling",  cr: 0,  log: "Cached psychographic data loaded" },
-  { key: "medcheck", icon: "🏥", label: "Medical Quick-Check", cr: 3,  log: "Scanning PubMed + WHO for claims..." },
+  { key: "medcheck", icon: "✅", label: "Medical Evidence",    cr: 0,  log: "Verified in Stage 3 — passed", inherited: true },
   { key: "scripts",  icon: "✍️", label: "Script Generation",   cr: 3,  log: "Writing 3 script styles in parallel..." },
   { key: "polish",   icon: "🎨", label: "Format & Polish",     cr: 1,  log: "Applying style, hooks, and CTAs..." },
 ];
@@ -31,7 +33,7 @@ export default function GenerationPipeline({ status, activeStep, awaitingMed = f
             {awaitingMed ? "Awaiting your approval" : "Generating..."}
           </p>
           {isBatch && reelProgress.current > 0 && (
-            <p className="mt-0.5 text-sm font-bold text-cyan">
+            <p className="mt-0.5 text-sm font-bold text-[#2563eb]">
               Writing Reel {reelProgress.current} of {reelProgress.total}…
             </p>
           )}
@@ -46,10 +48,11 @@ export default function GenerationPipeline({ status, activeStep, awaitingMed = f
 
       <div className="space-y-3">
         {STEPS.map((step, i) => {
-          const done    = i < activeStep || status === "done";
+          // Inherited steps (medical evidence from Stage 3) are always complete.
+          const done    = step.inherited || i < activeStep || status === "done";
           // While awaitingMed, the script-gen step (i=3) is "waiting" — not actually running
           const isWaitGate = awaitingMed && i === activeStep;
-          const running    = !isWaitGate && i === activeStep && status === "running";
+          const running    = !step.inherited && !isWaitGate && i === activeStep && status === "running";
 
           return (
             <motion.div
@@ -61,7 +64,7 @@ export default function GenerationPipeline({ status, activeStep, awaitingMed = f
             >
               {/* Status icon */}
               <div className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full text-sm transition ${
-                done       ? "bg-cyan/20 text-cyan"
+                done       ? "bg-[#2563eb]/20 text-[#2563eb]"
                 : isWaitGate ? "bg-amber-500/20 text-amber-300"
                 : running    ? "bg-electric/20 text-electric"
                 : "bg-[rgb(var(--bg-soft))] text-faint"
@@ -81,7 +84,7 @@ export default function GenerationPipeline({ status, activeStep, awaitingMed = f
                 <div className="flex items-center gap-2">
                   <span className="text-base leading-none">{step.icon}</span>
                   <span className={`text-sm font-semibold ${
-                    done       ? "text-cyan"
+                    done       ? "text-[#2563eb]"
                     : isWaitGate ? "text-amber-300"
                     : running    ? "text-[rgb(var(--text))]"
                     : "text-faint"
@@ -121,7 +124,7 @@ export default function GenerationPipeline({ status, activeStep, awaitingMed = f
       {/* Total credit tally */}
       <div className="mt-4 flex items-center justify-between border-t border-[rgb(var(--border))] pt-3 text-xs">
         <span className="text-faint">Total cost</span>
-        <span className="font-bold text-cyan">
+        <span className="font-bold text-[#2563eb]">
           {isBatch && reelProgress.total > 0 ? `${reelProgress.total * 8} credits (${reelProgress.total} × 8cr)` : "8 credits"}
         </span>
       </div>

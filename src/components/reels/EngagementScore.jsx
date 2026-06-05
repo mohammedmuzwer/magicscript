@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { computeEngagementScore } from "@/lib/reels/engagementScorer";
 
 const LABEL_COLOR = {
-  Viral:    "text-cyan",
+  Viral:    "text-[#2563eb]",
   Strong:   "text-emerald-400",
   Moderate: "text-amber-400",
   Low:      "text-rose-400",
@@ -32,7 +32,7 @@ export default function EngagementScore({ contentTypeId, scriptStyle, evidenceSc
             animate={{ width: `${score}%` }}
             transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
             className={`h-full rounded-full ${
-              label === "Viral" ? "bg-gradient-to-r from-cyan to-electric"
+              label === "Viral" ? "bg-gradient-to-r from-[#2563eb] to-electric"
               : label === "Strong" ? "bg-emerald-500"
               : label === "Moderate" ? "bg-amber-500"
               : "bg-rose-500"

@@ -80,6 +80,16 @@ ${ENRICHMENT_LENS_NOTES[enrichmentModule]}`
     ? "\n- Tanglish voice: mix Tamil and English naturally within sentences — not English sentences with Tamil words appended. Write exactly how a sharp Chennai creator speaks: casual, punchy, direct address (neenga / ungaloda / paapom / kavaniyunga)."
     : "";
 
+  // Build real PubMed citation block when available
+  const pubmedBlock = research.pubmedTopArticles?.length
+    ? `\n\nREAL PUBMED EVIDENCE (retrieved live from NCBI — cite these real studies, do NOT invent others):
+Evidence strength: ${research.pubmedEvidence?.label ?? "Unknown"} (${research.pubmedEvidence?.score ?? "?"}/100 · ${research.pubmedEvidence?.totalCount ?? "?"} total papers on PubMed)
+${research.pubmedTopArticles.map((a, i) =>
+  `[${i + 1}] ${a.title} (${a.year ?? "n/a"}) — ${a.journal}${a.pmid ? ` — PMID: ${a.pmid}` : ""}`
+).join("\n")}
+When citing evidence in your output, prefer these real articles over invented sources.`
+    : "";
+
   return `Create evidence-based short-form content.
 
 TOPIC: ${topic}
@@ -92,7 +102,7 @@ SCIENTIFIC CONTEXT (from the verification engine — do not contradict it):
 - Verdict: ${research.verdict}
 - Evidence confidence: ${research.confidence}%
 - Key finding: ${research.keyFinding}
-- Limitations: ${(research.limitations || []).join(" | ")}${transcriptBlock}${enrichmentBlock}
+- Limitations: ${(research.limitations || []).join(" | ")}${pubmedBlock}${transcriptBlock}${enrichmentBlock}
 
 WRITING RULES (apply to every section of output):
 - No intro roadmaps. Never start a section with "In this video I'll show you", "Here's what we're covering", "Today we're going to" or any agenda list. Start mid-thought.

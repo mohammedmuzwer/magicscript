@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getResearch } from "@/lib/research-data";
 import { generateContent } from "@/lib/generator";
 import { buildGenerationPrompt, callLLM, callMedicalVerification, isLLMConfigured, resolveProvider } from "@/lib/ai";
+import { getEvidenceReport, extractMedicalQuery } from "@/lib/pubmed";
 
 // POST /api/generate
 // Body: { topic, language, tone, platform, length, seed, enrichmentModule, sourceTranscript }
@@ -48,33 +49,53 @@ export async function POST(req) {
     const clientGoogleKey = req.headers.get("x-client-google-key")    || "";
     const keyOverrides    = { claude: clientClaudeKey, openai: clientOpenaiKey, google: clientGoogleKey };
 
-    // ── Stage 3: Medical Verification via Gemini ──────────────────────────────
-    // Evidence Retrieval + Claim Validator + Safety Guard agents run in parallel
-    // with the static research lookup. Gemini's output is merged over the static
-    // data so the template generator and LLM prompt both use live-verified values.
+    // ── PubMed Evidence + Stage 3 Medical Verification — run in parallel ────────
+    // PubMed: always runs (no key needed beyond NCBI_API_KEY in env).
+    // Gemini: runs only when a Google AI key is present.
+    // Both results are merged into `research` before content generation.
     const research = getResearch(topic);
     let geminiVerifyError = null;
 
     const hasGoogleKey = Boolean(clientGoogleKey || process.env.GOOGLE_AI_KEY || process.env.GEMINI_API_KEY);
-    if (hasGoogleKey) {
-      try {
-        const verification = await callMedicalVerification(topic, keyOverrides);
-        if (verification) {
-          // Merge only the fields Gemini returned — static data fills any gaps.
-          if (verification.verdict)        research.verdict       = verification.verdict;
-          if (verification.verdictWord)    research.verdictWord   = verification.verdictWord;
-          if (typeof verification.confidence === "number") research.confidence = verification.confidence;
-          if (verification.keyFinding)     research.keyFinding    = verification.keyFinding;
-          if (verification.limitations?.length) research.limitations = verification.limitations;
-          if (typeof verification.misinfoRisk === "number") research.misinfoRisk = verification.misinfoRisk;
-          if (verification.evidenceLevel)  research.evidenceLevel = verification.evidenceLevel;
-          if (verification.safetyFlags?.filter(Boolean).length)
-            research.safetyFlags = verification.safetyFlags.filter(Boolean);
-          research.geminiVerified = true;
-        }
-      } catch (e) {
-        geminiVerifyError = e?.message || String(e); // silent fallback — never blocks generation
-      }
+
+    // Clean the topic title into a proper medical search query
+    const pubmedQuery = extractMedicalQuery(topic);
+
+    const [pubmedResult] = await Promise.all([
+      // PubMed evidence — always attempt (graceful fallback on error)
+      getEvidenceReport(pubmedQuery, { maxResults: 10, minYear: 2015 }).catch((e) => {
+        console.warn("[generate] PubMed fetch failed (non-fatal):", e.message);
+        return null;
+      }),
+
+      // Gemini medical verification — only if key is present
+      hasGoogleKey
+        ? callMedicalVerification(topic, keyOverrides)
+            .then((verification) => {
+              if (verification) {
+                if (verification.verdict)        research.verdict       = verification.verdict;
+                if (verification.verdictWord)    research.verdictWord   = verification.verdictWord;
+                if (typeof verification.confidence === "number") research.confidence = verification.confidence;
+                if (verification.keyFinding)     research.keyFinding    = verification.keyFinding;
+                if (verification.limitations?.length) research.limitations = verification.limitations;
+                if (typeof verification.misinfoRisk === "number") research.misinfoRisk = verification.misinfoRisk;
+                if (verification.evidenceLevel)  research.evidenceLevel = verification.evidenceLevel;
+                if (verification.safetyFlags?.filter(Boolean).length)
+                  research.safetyFlags = verification.safetyFlags.filter(Boolean);
+                research.geminiVerified = true;
+              }
+            })
+            .catch((e) => { geminiVerifyError = e?.message || String(e); })
+        : Promise.resolve(),
+    ]);
+
+    // ── Merge real PubMed evidence into research object ───────────────────────
+    if (pubmedResult) {
+      research.pubmedEvidence     = pubmedResult.evidence;        // { score, level, label, articleCount, totalCount }
+      research.pubmedTopArticles  = pubmedResult.topArticles;     // top 5 articles with pmid, title, year, journal, url
+      research.pubmedTotalCount   = pubmedResult.evidence.totalCount;
+      // If Gemini didn't set evidenceLevel, use PubMed's
+      if (!research.evidenceLevel) research.evidenceLevel = pubmedResult.evidence.label;
     }
 
     // Step 1: full template baseline
@@ -115,6 +136,10 @@ export async function POST(req) {
         aiError,
         geminiVerified:    research.geminiVerified    || false,
         geminiVerifyError: geminiVerifyError || null,
+        // Real PubMed evidence metadata
+        pubmedEvidence:    research.pubmedEvidence    || null,
+        pubmedTopArticles: research.pubmedTopArticles || [],
+        pubmedSource:      "PubMed / NCBI E-utilities",
       },
     });
   } catch (e) {

@@ -26,10 +26,10 @@ const NAV_LINKS = [
   { label: "🔑 API",  href: "/dashboard/settings", icon: KeyRound     },
 ];
 
-// ── Product tabs (mirrors Agents/History product strip) ────────────────────
+// ── Product tabs ──────────────────────────────────────────────────────────────
 const PRODUCT_TABS = [
   { id: "studio",  label: "Studio",  icon: Tv,      active: true  },
-  { id: "reels",   label: "Reels",   icon: Film,    active: false },
+  { id: "reels",   label: "Reels",   icon: Film,    active: true  },
   { id: "podcast", label: "Podcast", icon: Mic,     active: false },
   { id: "youtube", label: "YouTube", icon: Youtube, active: false },
 ];
@@ -50,6 +50,202 @@ const LIBRARY_STATS = [
   { label: "Avg. Confidence",    val: "68%"    },
   { label: "Ready to Re-Export", val: String(SAVED_LIBRARY.length) },
 ];
+
+// ── Time helper ───────────────────────────────────────────────────────────────
+function timeAgo(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const mins = Math.floor((Date.now() - d.getTime()) / 60000);
+  if (mins < 1)  return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)  return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Reels Library panel — reads completed sessions from localStorage
+// ═══════════════════════════════════════════════════════════════════════════
+function ReelsLibraryPanel() {
+  const [sessions, setSessions]   = useState([]);
+  const [selected, setSelected]   = useState(null);
+  const [search,   setSearch]     = useState("");
+  const [copied,   setCopied]     = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem("ms_reels_sessions") || "[]");
+      const completed = raw.filter(s => s.status === "completed" && s.reels?.length > 0);
+      setSessions(completed);
+      if (completed.length) setSelected(completed[0]);
+    } catch {}
+  }, []);
+
+  const filtered = search
+    ? sessions.filter(s => (s.keyword ?? "").toLowerCase().includes(search.toLowerCase()))
+    : sessions;
+
+  const handleCopyAll = async () => {
+    if (!selected?.reels) return;
+    const text = selected.reels.map((r, i) => `REEL ${i + 1}: ${r.topic}\n\n${r.script ?? "(script not stored in library)"}`).join("\n\n" + "═".repeat(40) + "\n\n");
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleExport = () => {
+    if (!selected) return;
+    const text = selected.reels.map((r, i) => `REEL ${i + 1}\n${"─".repeat(50)}\n${r.topic}\n\n${r.script ?? "(script not stored)"}\n\n`).join("\n");
+    const blob = new Blob([text], { type: "text/plain" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `magicscript-reels-${selected.keyword ?? "batch"}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="flex min-h-0 flex-1 overflow-hidden">
+
+      {/* ── LEFT RAIL ─────────────────────────────────────────────────────── */}
+      <aside className="flex w-[280px] shrink-0 flex-col overflow-hidden border-r border-[rgb(var(--border))] bg-[rgb(var(--panel))]">
+        <div className="shrink-0 border-b border-[rgb(var(--border))] px-4 py-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-faint">Reels Library</p>
+          <p className="mt-0.5 text-[10px] text-faint/60">
+            {sessions.length} completed batch{sessions.length !== 1 ? "es" : ""}
+          </p>
+        </div>
+
+        <div className="shrink-0 border-b border-[rgb(var(--border))] px-3 py-2.5">
+          <div className="flex items-center gap-2 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] px-2.5 py-1.5">
+            <Search size={12} className="shrink-0 text-faint" />
+            <input type="text" placeholder="Search by keyword…" value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="min-w-0 flex-1 bg-transparent text-[11px] text-[rgb(var(--text))] placeholder-faint focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 space-y-0.5 overflow-y-auto p-2">
+          {filtered.length === 0 && (
+            <div className="px-3 py-12 text-center">
+              <Film size={22} className="mx-auto text-faint/40 mb-3" />
+              <p className="text-[11px] font-semibold text-faint mb-1">No saved reels yet</p>
+              <p className="text-[10px] text-faint/60 leading-relaxed">
+                Complete a reel session and click "Save All" to add it here.
+              </p>
+            </div>
+          )}
+          {filtered.map(s => {
+            const isActive = selected?.id === s.id;
+            return (
+              <button key={s.id} onClick={() => setSelected(s)}
+                className={`group flex w-full items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-all ${
+                  isActive ? "border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] ring-1 ring-inset ring-cyan/20" : "border-transparent hover:border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-soft))]"
+                }`}
+              >
+                <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs ${isActive ? "bg-cyan/15 text-cyan" : "bg-[rgb(var(--bg-soft))] text-faint"}`}>
+                  <Film size={12} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[11px] font-semibold text-soft capitalize">{s.keyword || "Untitled"}</p>
+                  <div className="mt-0.5 flex items-center gap-1.5">
+                    <p className="text-[9px] text-faint">{timeAgo(s.updatedAt ?? s.createdAt)}</p>
+                    <span className="text-faint/30">·</span>
+                    <p className="text-[9px] text-faint">{s.reels?.length ?? 0} reel{s.reels?.length !== 1 ? "s" : ""}</p>
+                  </div>
+                </div>
+                {isActive && <ChevronRight size={10} className="shrink-0 text-cyan" />}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="shrink-0 border-t border-[rgb(var(--border))] px-4 py-2.5">
+          <Link href="/dashboard/reels"
+            className="flex items-center gap-1.5 text-[10px] font-semibold text-cyan hover:underline transition"
+          >
+            <Film size={10} /> + Create New Reels
+          </Link>
+        </div>
+      </aside>
+
+      {/* ── RIGHT DETAIL ──────────────────────────────────────────────────── */}
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        {selected ? (
+          <>
+            {/* Header */}
+            <div className="shrink-0 border-b border-[rgb(var(--border))] px-6 py-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3 min-w-0">
+                  <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan/15 text-cyan">
+                    <Film size={16} />
+                  </span>
+                  <div className="min-w-0">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-emerald-400 mb-1">
+                      <span className="h-1 w-1 rounded-full bg-current" /> Completed
+                    </span>
+                    <h2 className="text-base font-bold capitalize">{selected.keyword || "Untitled"}</h2>
+                    <p className="mt-0.5 text-xs text-faint">{selected.reels?.length ?? 0} reels · Education format · PubMed verified</p>
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button onClick={handleCopyAll}
+                    className="flex items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] px-3 py-1.5 text-xs font-semibold text-soft transition hover:border-cyan/30 hover:text-cyan"
+                  >
+                    {copied ? "✓ Copied!" : "📋 Copy All"}
+                  </button>
+                  <button onClick={handleExport}
+                    className="flex items-center gap-1.5 rounded-lg bg-cyan px-3 py-1.5 text-xs font-bold text-[rgb(var(--bg))] transition hover:opacity-90"
+                  >
+                    📥 Export
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Reel cards */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3">
+              {(selected.reels ?? []).map((reel, i) => (
+                <div key={i} className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))] overflow-hidden">
+                  <div className="flex items-center gap-3 border-b border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] px-4 py-2.5">
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-cyan/15 text-[10px] font-bold text-cyan">{i + 1}</span>
+                    <p className="flex-1 truncate text-[11px] font-semibold text-soft">{reel.topic}</p>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {reel.evidenceScore != null && (
+                        <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${reel.evidenceScore >= 70 ? "bg-emerald-500/10 text-emerald-400" : reel.evidenceScore >= 40 ? "bg-amber-500/10 text-amber-400" : "bg-rose-500/10 text-rose-400"}`}>
+                          🔬 {reel.evidenceScore}/100
+                        </span>
+                      )}
+                      <span className="rounded-full border border-[rgb(var(--border))] px-2 py-0.5 text-[9px] font-semibold text-faint">
+                        {reel.shootStatus === "posted" ? "✅ Posted" : reel.shootStatus === "recorded" ? "🎥 Recorded" : "📌 To Shoot"}
+                      </span>
+                    </div>
+                  </div>
+                  {reel.script ? (
+                    <pre className="whitespace-pre-wrap font-sans text-xs leading-relaxed text-soft max-h-[200px] overflow-y-auto p-4">
+                      {reel.script}
+                    </pre>
+                  ) : (
+                    <p className="px-4 py-3 text-[11px] text-faint italic">Script not stored. Re-generate from History to recover.</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-1 items-center justify-center">
+            <div className="text-center">
+              <Film size={28} className="mx-auto text-faint/40 mb-3" />
+              <p className="text-sm font-semibold text-faint">Select a saved batch to view scripts</p>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Studio Library panel (the default — shows the saved content vault)
@@ -359,9 +555,9 @@ export default function LibraryPage() {
           </div>
         </div>
 
-        {/* Active product panel */}
         {activeProduct === "studio" && <StudioLibraryPanel />}
-        {activeProduct !== "studio" && (
+        {activeProduct === "reels"  && <ReelsLibraryPanel />}
+        {activeProduct !== "studio" && activeProduct !== "reels" && (
           <div className="flex flex-1 items-center justify-center">
             <p className="text-sm text-faint">
               {PRODUCT_TABS.find((p) => p.id === activeProduct)?.label} library — coming soon

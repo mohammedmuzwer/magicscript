@@ -2,38 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── LIGHT MODE — warm off-white, pure neutral grays, blue accent only ───────
+   R ≈ G ≈ B on every neutral token. No purple tints anywhere.
+────────────────────────────────────────────────────────────────────────────── */
 :root {
-  --bg: 243 244 246;            /* #f3f4f6 — grey canvas so white cards pop */
-  --bg-soft: 238 242 252;
-  --panel: 255 255 255;
-  --panel-soft: 246 248 253;
-  --border: 209 213 219;        /* #d1d5db — crisper card definition */
-  --text: 14 21 42;
-  --text-strong: 15 23 42;      /* #0f172a — near-black for primary headers */
-  --text-soft: 51 65 85;        /* #334155 — deep slate, highly readable body */
-  --text-faint: 71 85 105;      /* #475569 — slate-600, strong enough for light mode body text */
-  --accent: 59 95 224;
-  --accent-cyan: 14 116 144;    /* darker cyan for readable accent text on white */
-  --bg-active-tint: 241 245 249; /* #f1f5f9 — soft slate for selected/active elements */
-  --highlight-bg: 254 243 199;  /* amber-100 — WCAG-safe enrichment highlight background */
-  --highlight-text: 146 64 14;  /* amber-800 — dark amber text on amber background */
+  --bg:         245 245 240;    /* #f5f5f0 — warm cream, like Claude */
+  --bg-soft:    235 235 235;    /* #ebebeb — sidebar, 1 step darker than bg */
+  --panel:      255 255 255;    /* #ffffff — card backgrounds */
+  --panel-soft: 249 249 247;    /* #f9f9f7 — inputs, mode card inactive bg */
+  --border:     224 224 222;    /* ~rgba(0,0,0,0.12) — crisper card definition */
+  --text:       17  24  39;     /* #111827 — rich dark charcoal (Tailwind gray-900) */
+  --text-strong: 10 10  10;     /* #0a0a0a — headers */
+  --text-soft:  55  65  81;     /* #374151 — Tailwind gray-700, darker for legibility */
+  --text-faint: 107 114 128;    /* #6b7280 — Tailwind gray-500, darker than before */
+  --accent:     37  99  235;    /* #2563eb — Tailwind blue-600, industry standard */
+  --accent-cyan: 37  99  235;   /* #2563eb — unified with accent (no cyan) */
+  /* Info chip colours (light mode) */
+  --chip-bg:     rgba(37,99,235,0.09);
+  --chip-border: rgba(37,99,235,0.22);
+  --chip-text:   #2563eb;
+  --chip-dot:    #2563eb;
+  --bg-active-tint: 237 242 253; /* rgba(37,99,235,0.08) on white */
+  --highlight-bg: 254 243 199;  /* amber-100 */
+  --highlight-text: 146 64 14;  /* amber-800 */
 }
 
+/* ── DARK MODE — pure neutral grays, no purple/blue tints ────────────────────
+   R ≈ G ≈ B on every neutral token.
+────────────────────────────────────────────────────────────────────────────── */
 .dark {
-  --bg: 5 7 15;
-  --bg-soft: 7 11 24;
-  --panel: 11 17 36;
-  --panel-soft: 13 20 42;
-  --border: 30 44 82;
-  --text: 232 238 252;
-  --text-strong: 246 250 255;   /* slightly brighter than --text, for header crispness */
-  --text-soft: 158 172 205;
-  --text-faint: 110 124 158;
-  --accent: 91 140 255;
-  --accent-cyan: 34 211 238;
-  --bg-active-tint: 17 27 56;   /* slightly elevated panel for active states */
-  --highlight-bg: 120 53 15;    /* amber-900 — dark amber background in dark mode */
-  --highlight-text: 253 230 138; /* amber-200 — light amber text in dark mode */
+  --bg:         23  23  23;     /* #171717 — very dark warm gray */
+  --bg-soft:    26  26  26;     /* #1a1a1a — sidebar */
+  --panel:      33  33  33;     /* #212121 — cards */
+  --panel-soft: 42  42  42;     /* #2a2a2a — inputs, pills */
+  --border:     55  55  55;     /* ~rgba(255,255,255,0.10) on #212121 */
+  --text:       236 236 236;    /* #ececec — warm off-white, not pure white */
+  --text-strong: 245 245 245;   /* #f5f5f5 — for headers */
+  --text-soft:  153 153 153;    /* #999999 — secondary text */
+  --text-faint: 102 102 102;    /* #666666 — hint text */
+  --accent:     79  110 247;    /* #4f6ef7 — blue accent */
+  --accent-cyan: 79  110 247;   /* #4f6ef7 — unified with accent (no more teal) */
+  /* Info chip colours (dark mode) */
+  --chip-bg:     rgba(79,110,247,0.15);
+  --chip-border: rgba(79,110,247,0.30);
+  --chip-text:   #818cf8;
+  --chip-dot:    #818cf8;
+  --bg-active-tint: 45 45 45;   /* elevated surface for active states */
+  --highlight-bg: 120 53 15;    /* amber-900 */
+  --highlight-text: 253 230 138; /* amber-200 */
 }
 
 * {
@@ -52,45 +68,37 @@ body {
 }
 
 ::selection {
-  background: rgba(91, 140, 255, 0.32);
-  color: #fff;
+  background: rgba(79, 110, 247, 0.25);
+  color: rgb(var(--text));
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(91, 140, 255, 0.25);
-  border-radius: 999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(91, 140, 255, 0.45);
-  background-clip: padding-box;
+  background: rgba(0, 0, 0, 0.25);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.20);
 }
 
 @layer components {
   .app-bg {
     background-color: rgb(var(--bg));
   }
-  .dark .app-bg {
-    background-image: radial-gradient(
-        60% 50% at 80% -10%,
-        rgba(34, 211, 238, 0.1),
-        transparent 60%
-      ),
-      radial-gradient(
-        50% 50% at 8% 8%,
-        rgba(91, 140, 255, 0.12),
-        transparent 60%
-      );
-  }
+  /* No ambient glow — clean neutral background in both modes */
 
   .glass {
     background: rgba(var(--panel), 0.72);
@@ -110,20 +118,23 @@ body {
     background: rgb(var(--panel));
     border: 1px solid rgb(var(--border));
     border-radius: 1.1rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 0 0 0.5px rgba(0, 0, 0, 0.08);
+  }
+  .dark .card {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.40), 0 0 0 0.5px rgba(255, 255, 255, 0.08);
   }
 
   .card-hover {
-    transition: transform 0.25s ease, border-color 0.25s ease,
-      box-shadow 0.25s ease;
+    transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
   }
   .card-hover:hover {
-    transform: translateY(-3px);
-    border-color: rgba(91, 140, 255, 0.3);
-    box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.1), 0 2px 8px -2px rgba(0, 0, 0, 0.06);
+    transform: translateY(-2px);
+    border-color: rgba(58, 91, 223, 0.30);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.10);
   }
   .dark .card-hover:hover {
-    border-color: rgba(91, 140, 255, 0.5);
-    box-shadow: 0 22px 60px -28px rgba(34, 211, 238, 0.45);
+    border-color: rgba(79, 110, 247, 0.30);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.40);
   }
 
   .text-strong {
@@ -136,8 +147,15 @@ body {
     color: rgb(var(--text-faint));
   }
 
+  /* Blue-only gradient text */
   .gradient-text {
-    background: linear-gradient(110deg, #22d3ee, #5b8cff 55%, #2dd4bf);
+    background: linear-gradient(110deg, #3a5bdf, #6b8af5 55%, #3a5bdf);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .dark .gradient-text {
+    background: linear-gradient(110deg, #4f6ef7, #7a92f8 55%, #4f6ef7);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -154,19 +172,13 @@ body {
     white-space: nowrap;
   }
   .btn-primary {
-    background: linear-gradient(120deg, #22d3ee, #5b8cff);
-    color: #050912;
-    box-shadow: 0 4px 14px -4px rgba(34, 211, 238, 0.3);
-  }
-  .dark .btn-primary {
-    box-shadow: 0 14px 40px -14px rgba(34, 211, 238, 0.6);
+    background: linear-gradient(120deg, #4f6ef7, #3a5bdf);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(58, 91, 223, 0.30);
   }
   .btn-primary:hover {
-    box-shadow: 0 6px 20px -6px rgba(34, 211, 238, 0.45);
+    box-shadow: 0 4px 14px rgba(58, 91, 223, 0.40);
     transform: translateY(-1px);
-  }
-  .dark .btn-primary:hover {
-    box-shadow: 0 18px 50px -12px rgba(34, 211, 238, 0.85);
   }
   .btn-ghost {
     background: rgba(var(--panel), 0.6);
@@ -174,8 +186,8 @@ body {
     color: rgb(var(--text));
   }
   .btn-ghost:hover {
-    border-color: rgba(91, 140, 255, 0.55);
-    background: rgba(91, 140, 255, 0.08);
+    border-color: rgba(79, 110, 247, 0.40);
+    background: rgba(79, 110, 247, 0.06);
   }
 
   .chip {
@@ -184,7 +196,7 @@ body {
     gap: 0.35rem;
     border-radius: 999px;
     border: 1px solid rgb(var(--border));
-    background: rgba(91, 140, 255, 0.06);
+    background: rgba(79, 110, 247, 0.05);
     font-weight: 500;
   }
 
@@ -192,27 +204,32 @@ body {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
   }
   .dark .ring-soft {
-    box-shadow: 0 0 0 1px rgba(91, 140, 255, 0.18),
-      0 18px 60px -24px rgba(34, 211, 238, 0.4);
+    box-shadow: 0 0 0 1px rgba(79, 110, 247, 0.12), 0 4px 12px rgba(0, 0, 0, 0.30);
   }
 
   .glow-line {
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(34, 211, 238, 0.6),
-      transparent
-    );
+    background: linear-gradient(90deg, transparent, rgba(79, 110, 247, 0.30), transparent);
   }
 
   .grid-bg {
-    background-image: radial-gradient(
-      circle at 1px 1px,
-      rgba(91, 140, 255, 0.12) 1px,
-      transparent 0
-    );
+    background-image: radial-gradient(circle at 1px 1px, rgba(58, 91, 223, 0.08) 1px, transparent 0);
     background-size: 30px 30px;
   }
+  .dark .grid-bg {
+    background-image: radial-gradient(circle at 1px 1px, rgba(79, 110, 247, 0.06) 1px, transparent 0);
+    background-size: 30px 30px;
+  }
+
+  /* ── Dark mode semantic color overrides ────────────────────────────────────
+     Tailwind's built-in palette is too neon in dark mode — desaturate here.
+  ─────────────────────────────────────────────────────────────────────────── */
+  .dark .text-emerald-400 { color: #4ade80; }
+  .dark .text-emerald-500 { color: #22c55e; }
+  .dark .text-green-400   { color: #4ade80; }
+  .dark .text-green-500   { color: #22c55e; }
+  .dark .text-cyan        { color: #4f6ef7; }   /* cyan → accent blue in dark mode */
+  .dark .text-amber-400   { color: #fbbf24; }
+  .dark .text-amber-300   { color: #fcd34d; }
 }
 
 @layer utilities {
@@ -223,22 +240,98 @@ body {
     -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent);
     mask-image: linear-gradient(to bottom, #000 60%, transparent);
   }
-  .animate-delay-100 {
-    animation-delay: 0.1s;
-  }
-  .animate-delay-200 {
-    animation-delay: 0.2s;
-  }
-  .animate-delay-300 {
-    animation-delay: 0.3s;
-  }
+  .animate-delay-100 { animation-delay: 0.1s; }
+  .animate-delay-200 { animation-delay: 0.2s; }
+  .animate-delay-300 { animation-delay: 0.3s; }
   .shimmer-bg {
     background: linear-gradient(
       90deg,
-      rgba(91, 140, 255, 0.05) 25%,
-      rgba(91, 140, 255, 0.18) 50%,
-      rgba(91, 140, 255, 0.05) 75%
+      rgba(79, 110, 247, 0.04) 25%,
+      rgba(79, 110, 247, 0.12) 50%,
+      rgba(79, 110, 247, 0.04) 75%
     );
     background-size: 200% 100%;
   }
+
+  /* dvh-safe full height — uses 100dvh with 100vh fallback */
+  .h-dvh {
+    height: 100vh;   /* fallback for older browsers */
+    height: 100dvh;  /* dynamic viewport height — accounts for browser chrome */
+  }
+
+  /* ── Nav tabs: icon-only inactive, animated label when active ──────────────
+     The emoji/icon never moves — only the label span grows/shrinks + fades.
+     Inactive: max-width 0, opacity 0, no left margin (label fully clipped).
+     Active:   max-width auto-ish, opacity 1, 6px gap from the icon.        */
+  .navtab-emoji {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+  }
+  /* Active coloured tab keeps its vibrant inline label colour in dark mode;
+     in light mode neutralise it to high-contrast text (vibrant hues read poorly
+     on white). `!important` here beats the non-important inline `color`. */
+  html:not(.dark) .navtab-active { color: rgb(var(--text)) !important; }
+
+  .navtab-label {
+    display: inline-block;
+    overflow: hidden;
+    white-space: nowrap;
+    max-width: 0;
+    opacity: 0;
+    margin-left: 0;
+    transition: max-width 150ms ease-in, opacity 150ms ease-in, margin-left 150ms ease-in;
+  }
+  .navtab-label[data-active="true"] {
+    max-width: 240px;
+    opacity: 1;
+    margin-left: 6px;
+    transition: max-width 200ms ease-out, opacity 200ms ease-out, margin-left 200ms ease-out;
+  }
+
+  /* ── Multitask indicator dot — work in progress on an inactive tab ───────── */
+  .navtab-dot {
+    position: absolute;
+    top: -3px;
+    right: -4px;
+    width: 5px;
+    height: 5px;
+    border-radius: 9999px;
+    animation: navtabDotPulse 2s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes navtabDotPulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.4; }
+  }
+
+  /* ── Page/tab content transition (incoming panel) ─────────────────────────
+     Outgoing is bounded by route navigation (the page unmounts), so we play
+     the incoming enter animation on the new tab's content area.            */
+  .tab-content-enter {
+    animation: tabContentEnter 180ms ease-out 80ms both;
+  }
+  @keyframes tabContentEnter {
+    from { opacity: 0; transform: translateX(8px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  /* JS-toggleable crossfade classes (per spec) for in-place tab swaps */
+  .tab-enter        { opacity: 0; transform: translateX(8px); }
+  .tab-enter-active { opacity: 1; transform: translateX(0);
+                      transition: opacity 180ms ease-out, transform 180ms ease-out; }
+  .tab-exit         { opacity: 1; transform: translateX(0); }
+  .tab-exit-active  { opacity: 0; transform: translateX(-8px);
+                      transition: opacity 120ms ease-in, transform 120ms ease-in; }
+}
+
+/* ── Respect reduced-motion: tab animations become instant ──────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .navtab-label,
+  .navtab-label[data-active="true"] { transition: none !important; }
+  .navtab-dot        { animation: none !important; }
+  .tab-content-enter { animation: none !important; }
+  .tab-enter-active,
+  .tab-exit-active   { transition: none !important; }
 }

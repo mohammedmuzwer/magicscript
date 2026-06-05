@@ -17,15 +17,20 @@ import {
   ENRICHMENT_MODULES, OUTPUT_FORMATS_ONLINE, OUTPUT_FORMATS_OFFLINE,
 } from "@/lib/pipeline-registry";
 import Logo from "@/components/ui/logo";
-import ThemeToggle from "@/components/ui/theme-toggle";
 import WorkspaceModeToggle from "@/components/ui/workspace-mode-toggle";
 import { Avatar } from "@/components/dashboard/dashboard-shell";
+import NavActions from "@/components/ui/nav-actions";
 import {
   PODCAST_PIPELINE_AGENTS,
   STAGE_COLOR_MAP,
   loadAllCustomPrompts,
   saveCustomPrompt,
 } from "@/lib/podcast/agent-registry";
+import {
+  REELS_PIPELINE_AGENTS,
+  loadAllReelsCustomPrompts,
+  saveReelsCustomPrompt,
+} from "@/lib/reels/agent-registry";
 
 // ── Top nav links (mirrors the Studio header) ─────────────────────────────
 const NAV_LINKS = [
@@ -40,9 +45,9 @@ const STAGE_GROUPS = [
   {
     id: "input",
     label: "1 — Input",
-    color: "text-cyan-400",
-    dot: "bg-cyan-400",
-    ring: "ring-cyan-500/20",
+    color: "text-[#2563eb]",
+    dot: "bg-[#2563eb]",
+    ring: "ring-[#2563eb]/20",
     agents: INPUT_AGENTS,
   },
   {
@@ -80,17 +85,17 @@ const STAGE_GROUPS = [
   {
     id: "output-online",
     label: "6 — Online Output",
-    color: "text-teal-400",
-    dot: "bg-teal-400",
-    ring: "ring-teal-500/20",
+    color: "text-[#2563eb]",
+    dot: "bg-[#2563eb]",
+    ring: "ring-[#2563eb]/20",
     agents: OUTPUT_FORMATS_ONLINE,
   },
   {
     id: "output-offline",
     label: "6 — Offline Output",
-    color: "text-teal-400",
-    dot: "bg-teal-400",
-    ring: "ring-teal-500/20",
+    color: "text-[#2563eb]",
+    dot: "bg-[#2563eb]",
+    ring: "ring-[#2563eb]/20",
     agents: OUTPUT_FORMATS_OFFLINE,
   },
 ];
@@ -593,11 +598,11 @@ function loadConfigs() {
 
 // ── Stage badge colours ────────────────────────────────────────────────────
 const STAGE_COLORS = {
-  input:      "bg-cyan-500/15 text-cyan-400 border-cyan-500/25",
+  input:      "bg-[#2563eb]/12 text-[#2563eb] border-[#2563eb]/25",
   audience:   "bg-violet-500/15 text-violet-400 border-violet-500/25",
   process:    "bg-blue-500/15 text-blue-400 border-blue-500/25",
   enrichment: "bg-amber-500/15 text-amber-400 border-amber-500/25",
-  output:     "bg-teal-500/15 text-teal-400 border-teal-500/25",
+  output:     "bg-[#2563eb]/10 text-[#2563eb] border-[#2563eb]/25",
 };
 
 // ── Editable constraint tag ───────────────────────────────────────────────
@@ -625,7 +630,7 @@ function AgentRow({ agent, isActive, onClick }) {
       onClick={onClick}
       className={`group flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-all ${
         isActive
-          ? "border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] ring-1 ring-inset ring-cyan/20"
+          ? "border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] ring-1 ring-inset ring-[#2563eb]/20"
           : "border-transparent hover:border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-soft))]"
       }`}
     >
@@ -640,7 +645,7 @@ function AgentRow({ agent, isActive, onClick }) {
           <p className="text-[10px] text-faint">{agent.credits}cr · ~{(agent.estimatedMs / 1000).toFixed(1)}s</p>
         )}
       </div>
-      {isActive && <ChevronRight size={11} className="shrink-0 text-cyan" />}
+      {isActive && <ChevronRight size={11} className="shrink-0 text-[#2563eb]" />}
     </button>
   );
 }
@@ -683,22 +688,40 @@ function StageSection({ group, selectedId, onSelect, isOpen, onToggle }) {
 // ── Product tabs shown above the left rail ────────────────────────────────
 const PRODUCT_TABS = [
   { id: "studio",  label: "Studio",  icon: Tv,      active: true  },
-  { id: "reels",   label: "Reels",   icon: Film,     active: false },
+  { id: "reels",   label: "Reels",   icon: Film,     active: true  },
   { id: "podcast", label: "Podcast", icon: Mic,      active: true  },
   { id: "youtube", label: "YouTube", icon: Youtube,  active: false },
 ];
 
+// ── Info chip — used for "Stage X of X" and model badges ─────────────────
+// CSS vars --chip-bg/border/text/dot are defined in globals.css for light+dark
+function InfoChip({ children, dot = true }) {
+  return (
+    <span
+      className="inline-flex items-center gap-[5px] rounded-full text-[12px] font-semibold"
+      style={{
+        background: "var(--chip-bg)",
+        border: "1px solid var(--chip-border)",
+        color: "var(--chip-text)",
+        padding: "3px 10px",
+      }}
+    >
+      {dot && (
+        <span className="h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: "var(--chip-dot)" }} />
+      )}
+      {children}
+    </span>
+  );
+}
+
 // ── Model badge helper ────────────────────────────────────────────────────
 function ModelBadge({ model }) {
   const isGemini = model === "gemini";
+  if (isGemini) return <InfoChip>Gemini 2.5 Flash</InfoChip>;
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold ${
-      isGemini
-        ? "bg-cyan/10 text-cyan border-cyan/25"
-        : "bg-violet-500/10 text-violet-400 border-violet-500/25"
-    }`}>
-      <span className={`h-1 w-1 rounded-full ${isGemini ? "bg-cyan" : "bg-violet-400"}`} />
-      {isGemini ? "Gemini 2.5 Flash" : "Claude Sonnet 4.6"}
+    <span className="inline-flex items-center gap-[5px] rounded-full border border-violet-500/25 bg-violet-500/10 px-[10px] py-[3px] text-[12px] font-semibold text-violet-400">
+      <span className="h-[5px] w-[5px] shrink-0 rounded-full bg-violet-400" />
+      Claude Sonnet 4.6
     </span>
   );
 }
@@ -773,7 +796,7 @@ function PodcastAgentPanel() {
                 onClick={() => selectStage(agent)}
                 className={`group flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-all ${
                   isActive
-                    ? "border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] ring-1 ring-inset ring-cyan/20"
+                    ? "border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] ring-1 ring-inset ring-[#2563eb]/20"
                     : "border-transparent hover:border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-soft))]"
                 }`}
               >
@@ -791,7 +814,7 @@ function PodcastAgentPanel() {
                 {hasSaved && (
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" title="Has custom instructions" />
                 )}
-                {isActive && <ChevronRight size={10} className="shrink-0 text-cyan" />}
+                {isActive && <ChevronRight size={10} className="shrink-0 text-[#2563eb]" />}
               </button>
             );
           })}
@@ -816,10 +839,7 @@ function PodcastAgentPanel() {
               </span>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold ${colorCls.border} ${colorCls.text} ${colorCls.bg}`}>
-                    <span className={`h-1 w-1 rounded-full ${colorCls.dot}`} />
-                    Stage {selectedStage.stageNum} of 10
-                  </span>
+                  <InfoChip>Stage {selectedStage.stageNum} of 10</InfoChip>
                   <ModelBadge model={selectedStage.defaultModel} />
                   {hasCustom && (
                     <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold text-amber-400">
@@ -850,7 +870,7 @@ function PodcastAgentPanel() {
                 className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${
                   saveState === "saved"
                     ? "bg-emerald-500 text-black"
-                    : "bg-cyan text-[rgb(var(--bg))] hover:opacity-90"
+                    : "bg-[#2563eb] text-white hover:opacity-90"
                 }`}
               >
                 {saveState === "saved" ? <Check size={13} /> : <Save size={13} />}
@@ -876,7 +896,7 @@ function PodcastAgentPanel() {
               <button
                 type="button"
                 onClick={handleCopyFixed}
-                className="ml-auto flex items-center gap-1 rounded-lg border border-[rgb(var(--border))] px-2.5 py-1 text-[10px] font-semibold text-faint transition hover:border-cyan/40 hover:text-cyan"
+                className="ml-auto flex items-center gap-1 rounded-lg border border-[rgb(var(--border))] px-2.5 py-1 text-[10px] font-semibold text-faint transition hover:border-[#2563eb]/40 hover:text-[#2563eb]"
               >
                 <Copy size={10} />
                 {copied ? "Copied!" : "Copy"}
@@ -923,7 +943,7 @@ function PodcastAgentPanel() {
             <div className="flex items-center justify-between border-t border-[rgb(var(--border))] px-4 py-2.5">
               <p className="text-[10px] text-faint leading-relaxed">
                 These instructions are appended to the built-in prompt and active on every generation for this stage.
-                Saved to <span className="font-mono text-cyan/70">localStorage</span>.
+                Saved to <span className="font-mono text-[#2563eb]/70">localStorage</span>.
               </p>
               <button
                 type="button"
@@ -945,7 +965,253 @@ function PodcastAgentPanel() {
           <div className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] px-4 py-3">
             <p className="text-[11px] font-semibold text-soft">How additional instructions work</p>
             <p className="mt-1 text-[11px] text-faint leading-relaxed">
-              The final prompt sent to the AI is: <span className="font-mono text-cyan/80">[Built-in prompt]</span> +{" "}
+              The final prompt sent to the AI is: <span className="font-mono text-[#2563eb]/80">[Built-in prompt]</span> +{" "}
+              <span className="font-mono text-amber-400/80">[Your additional instructions]</span>.
+              The built-in rules always run first and cannot be overridden — your instructions extend them.
+              Changes take effect on the next generation — no page reload needed.
+            </p>
+          </div>
+
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Reels Agent Panel — dual-box editor for reels pipeline stages
+// ═══════════════════════════════════════════════════════════════════════════
+function ReelsAgentPanel() {
+  const [selectedStage, setSelectedStage] = useState(REELS_PIPELINE_AGENTS[0]);
+  const [customPrompts, setCustomPrompts] = useState({});
+  const [localCustom, setLocalCustom]     = useState("");
+  const [saveState, setSaveState]         = useState("idle");
+  const [copied, setCopied]               = useState(false);
+
+  useEffect(() => {
+    const all = loadAllReelsCustomPrompts();
+    setCustomPrompts(all);
+    setLocalCustom(all[REELS_PIPELINE_AGENTS[0].id] ?? "");
+  }, []);
+
+  function selectStage(stage) {
+    setSelectedStage(stage);
+    setLocalCustom(customPrompts[stage.id] ?? "");
+    setSaveState("idle");
+  }
+
+  function handleSave() {
+    setSaveState("saving");
+    saveReelsCustomPrompt(selectedStage.id, localCustom);
+    setCustomPrompts((prev) => ({ ...prev, [selectedStage.id]: localCustom }));
+    setTimeout(() => setSaveState("saved"), 300);
+    setTimeout(() => setSaveState("idle"), 2500);
+  }
+
+  function handleReset() {
+    setLocalCustom("");
+    saveReelsCustomPrompt(selectedStage.id, "");
+    setCustomPrompts((prev) => ({ ...prev, [selectedStage.id]: "" }));
+    setSaveState("idle");
+  }
+
+  function handleCopyFixed() {
+    navigator.clipboard?.writeText(selectedStage.fixedPrompt ?? "").then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    });
+  }
+
+  const colorCls = STAGE_COLOR_MAP[selectedStage.color] ?? STAGE_COLOR_MAP.cyan;
+  const hasCustom = (customPrompts[selectedStage.id] ?? "").trim().length > 0;
+  const wordCount = localCustom.trim().split(/\s+/).filter(Boolean).length;
+
+  return (
+    <div className="flex min-h-0 flex-1 overflow-hidden">
+
+      {/* ── LEFT RAIL — stage list ──────────────────────────────────────── */}
+      <aside className="flex w-[220px] shrink-0 flex-col overflow-hidden border-r border-[rgb(var(--border))] bg-[rgb(var(--panel))]">
+        <div className="shrink-0 border-b border-[rgb(var(--border))] px-4 py-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-faint">Reels Pipeline</p>
+          <p className="mt-0.5 text-[10px] text-faint/60">5-stage production system</p>
+        </div>
+        <div className="flex-1 space-y-0.5 overflow-y-auto p-2 scrollbar-thin">
+          {REELS_PIPELINE_AGENTS.map((agent) => {
+            const isActive = agent.id === selectedStage.id;
+            const hasSaved = (customPrompts[agent.id] ?? "").trim().length > 0;
+            const c = STAGE_COLOR_MAP[agent.color] ?? STAGE_COLOR_MAP.cyan;
+            return (
+              <button
+                key={agent.id}
+                type="button"
+                onClick={() => selectStage(agent)}
+                className={`group flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-all ${
+                  isActive
+                    ? "border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] ring-1 ring-inset ring-[#2563eb]/20"
+                    : "border-transparent hover:border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-soft))]"
+                }`}
+              >
+                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[10px] font-black ${c.bg} ${c.text} ${isActive ? "" : "opacity-70"}`}>
+                  S{agent.stageNum}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className={`truncate text-[11px] font-semibold transition ${isActive ? "text-[rgb(var(--text))]" : "text-soft group-hover:text-[rgb(var(--text))]"}`}>
+                    {agent.label}
+                  </p>
+                  <p className="text-[9px] text-faint">{agent.defaultModel === "claude" ? "Claude" : "Gemini"} default</p>
+                </div>
+                {hasSaved && (
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" title="Has custom instructions" />
+                )}
+                {isActive && <ChevronRight size={10} className="shrink-0 text-[#2563eb]" />}
+              </button>
+            );
+          })}
+        </div>
+        <div className="shrink-0 border-t border-[rgb(var(--border))] px-4 py-2.5">
+          <p className="text-[10px] text-faint">
+            {REELS_PIPELINE_AGENTS.filter((a) => (customPrompts[a.id] ?? "").trim()).length} of 5 stages customised
+          </p>
+        </div>
+      </aside>
+
+      {/* ── RIGHT WORKSPACE — dual-box editor ──────────────────────────── */}
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+
+        {/* Identity bar */}
+        <div className="shrink-0 border-b border-[rgb(var(--border))] px-6 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className={`flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black ${colorCls.bg} ${colorCls.text}`}>
+                S{selectedStage.stageNum}
+              </span>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <InfoChip>Stage {selectedStage.stageNum} of 5</InfoChip>
+                  <ModelBadge model={selectedStage.defaultModel} />
+                  {hasCustom && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold text-amber-400">
+                      <Plus size={8} />
+                      Custom instructions active
+                    </span>
+                  )}
+                </div>
+                <h2 className="mt-0.5 text-base font-bold">{selectedStage.label}</h2>
+                <p className="mt-0.5 text-xs text-faint">{selectedStage.description}</p>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={handleReset}
+                disabled={!hasCustom}
+                className="flex items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] px-3 py-1.5 text-xs font-semibold text-faint transition hover:border-rose-500/40 hover:text-rose-400 disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <RotateCcw size={12} />
+                Clear custom
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saveState === "saving"}
+                className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${
+                  saveState === "saved"
+                    ? "bg-emerald-500 text-black"
+                    : "bg-[#2563eb] text-white hover:opacity-90"
+                }`}
+              >
+                {saveState === "saved" ? <Check size={13} /> : <Save size={13} />}
+                {saveState === "saved" ? "Saved" : "Save instructions"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Scrollable editor area */}
+        <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5 scrollbar-thin">
+
+          {/* BOX 1: Fixed / Built-in System Prompt (read-only) */}
+          <section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))]">
+            <div className="flex items-center gap-2 border-b border-[rgb(var(--border))] px-4 py-3">
+              <Lock size={12} className="shrink-0 text-faint" />
+              <span className="text-[11px] font-bold uppercase tracking-wider text-faint">
+                Built-in System Prompt
+              </span>
+              <span className="ml-1 rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] px-2 py-0.5 text-[9px] text-faint">
+                read-only · baked into route
+              </span>
+              <button
+                type="button"
+                onClick={handleCopyFixed}
+                className="ml-auto flex items-center gap-1 rounded-lg border border-[rgb(var(--border))] px-2.5 py-1 text-[10px] font-semibold text-faint transition hover:border-[#2563eb]/40 hover:text-[#2563eb]"
+              >
+                <Copy size={10} />
+                {copied ? "Copied!" : "Copy"}
+              </button>
+            </div>
+            <div className="relative">
+              <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap p-4 font-mono text-[11px] leading-relaxed text-soft scrollbar-thin">
+                {selectedStage.fixedPrompt}
+              </pre>
+              <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 rounded-b-xl bg-gradient-to-t from-[rgb(var(--panel))] to-transparent" />
+            </div>
+            <div className="border-t border-[rgb(var(--border))] px-4 py-2">
+              <p className="text-[10px] text-faint">
+                This prompt runs on every generation for Stage {selectedStage.stageNum}. It cannot be disabled — only supplemented.
+              </p>
+            </div>
+          </section>
+
+          {/* BOX 2: Additional / Custom Instructions (editable) */}
+          <section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))]">
+            <div className="flex items-center gap-2 border-b border-[rgb(var(--border))] px-4 py-3">
+              <Plus size={12} className="shrink-0 text-amber-400" />
+              <span className="text-[11px] font-bold uppercase tracking-wider text-faint">
+                Additional Instructions
+              </span>
+              <span className="ml-1 rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[9px] text-amber-400">
+                appended after built-in prompt
+              </span>
+              {localCustom.trim() && (
+                <span className="ml-auto text-[10px] text-faint">{wordCount} words</span>
+              )}
+            </div>
+            <div className="p-4">
+              <textarea
+                value={localCustom}
+                onChange={(e) => { setLocalCustom(e.target.value); setSaveState("idle"); }}
+                rows={12}
+                spellCheck={false}
+                placeholder={`Add extra conditions for Stage ${selectedStage.stageNum} — ${selectedStage.label}.\n\nExamples:\n• "Always include a specific example from a South Indian patient"\n• "Prioritise Type 2 diabetes angles when the topic is ambiguous"\n• "Never mention specific medication brand names"\n• "For this stage, always suggest one Tanglish hook option"\n\nThese instructions are appended after the built-in prompt and take effect on every generation.`}
+                className="w-full resize-none rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] p-4 font-mono text-[12px] leading-relaxed text-soft placeholder-faint/50 focus:border-amber-400/40 focus:outline-none scrollbar-thin"
+              />
+            </div>
+            <div className="flex items-center justify-between border-t border-[rgb(var(--border))] px-4 py-2.5">
+              <p className="text-[10px] text-faint leading-relaxed">
+                These instructions are appended to the built-in prompt and active on every generation for this stage.
+                Saved to <span className="font-mono text-[#2563eb]/70">localStorage</span>.
+              </p>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saveState === "saving"}
+                className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                  saveState === "saved"
+                    ? "bg-emerald-500 text-black"
+                    : "bg-amber-500/20 text-amber-300 hover:bg-amber-500/30"
+                }`}
+              >
+                {saveState === "saved" ? <Check size={12} /> : <Save size={12} />}
+                {saveState === "saved" ? "Saved" : "Save"}
+              </button>
+            </div>
+          </section>
+
+          {/* How it works note */}
+          <div className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] px-4 py-3">
+            <p className="text-[11px] font-semibold text-soft">How additional instructions work</p>
+            <p className="mt-1 text-[11px] text-faint leading-relaxed">
+              The final prompt sent to the AI is: <span className="font-mono text-[#2563eb]/80">[Built-in prompt]</span> +{" "}
               <span className="font-mono text-amber-400/80">[Your additional instructions]</span>.
               The built-in rules always run first and cannot be overridden — your instructions extend them.
               Changes take effect on the next generation — no page reload needed.
@@ -1069,7 +1335,7 @@ export default function AgentManagement() {
 
   const tempColor =
     temperature <= 0.3 ? "text-blue-400" :
-    temperature <= 0.6 ? "text-teal-400" :
+    temperature <= 0.6 ? "text-[#2563eb]" :
     temperature <= 0.8 ? "text-amber-400" : "text-rose-400";
 
   const stageKey = selectedAgent.stage || "process";
@@ -1088,71 +1354,7 @@ export default function AgentManagement() {
           <WorkspaceModeToggle activeOverride={activeProduct} />
         </div>
 
-        {/* Centre: nav links */}
-        <nav className="hidden items-center gap-0.5 md:flex">
-          {NAV_LINKS.map(({ label, href, icon: Icon }) => {
-            const active = href === "/dashboard/agents";
-            return (
-              <Link
-                key={label}
-                href={href}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition ${
-                  active
-                    ? "bg-[rgb(var(--bg-soft))] text-[rgb(var(--text))]"
-                    : "text-faint hover:bg-[rgb(var(--bg-soft))] hover:text-soft"
-                }`}
-              >
-                <Icon size={13} />
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Right: credits + theme + avatar */}
-        <div className="flex items-center gap-2">
-          <Link
-            href="/dashboard/billing"
-            className="hidden items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel))] px-2.5 py-1.5 text-xs font-semibold sm:flex"
-          >
-            <Zap size={13} className="text-cyan" />
-            <span className="text-cyan">{user.credits}</span>
-            <span className="text-faint">credits</span>
-          </Link>
-          <ThemeToggle />
-          <div className="relative">
-            <button
-              onClick={() => setMenuOpen((v) => !v)}
-              className="flex items-center gap-2 rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))] py-1 pl-1 pr-2"
-            >
-              <Avatar user={user} />
-              <ChevronDown size={14} className="hidden text-faint sm:block" />
-            </button>
-            {menuOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 z-20 mt-2 w-52 overflow-hidden rounded-xl border border-[rgb(var(--border))] glass-strong p-1.5 shadow-card">
-                  <div className="border-b border-[rgb(var(--border))] px-3 py-2.5">
-                    <div className="text-sm font-semibold">{user.name}</div>
-                    <div className="truncate text-xs text-faint">{user.email}</div>
-                  </div>
-                  <Link href="/dashboard/profile" onClick={() => setMenuOpen(false)} className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-soft transition hover:bg-electric/8">
-                    <UserCircle size={15} /> Profile
-                  </Link>
-                  <Link href="/dashboard/billing" onClick={() => setMenuOpen(false)} className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-soft transition hover:bg-electric/8">
-                    <CreditCard size={15} /> Subscription
-                  </Link>
-                  <button
-                    onClick={() => { logout(); router.push("/"); }}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-rose-300 transition hover:bg-rose-500/10"
-                  >
-                    <LogOut size={15} /> Log out
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+        <NavActions />
       </header>
 
       {/* ── Body ───────────────────────────────────────────────────────── */}
@@ -1176,8 +1378,10 @@ export default function AgentManagement() {
                     ? "cursor-not-allowed opacity-25 border-transparent text-faint"
                     : activeProduct === id
                       ? id === "podcast"
-                        ? "border-cyan/30 bg-cyan/15 text-cyan"
-                        : "border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] text-[rgb(var(--text))]"
+                        ? "border-[#2563eb]/30 bg-[#2563eb]/15 text-[#2563eb]"
+                        : id === "reels"
+                          ? "border-pink-500/30 bg-pink-500/15 text-pink-400"
+                          : "border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] text-[rgb(var(--text))]"
                       : "border-transparent text-faint hover:border-[rgb(var(--border))] hover:text-soft"
                 }`}
               >
@@ -1191,6 +1395,11 @@ export default function AgentManagement() {
         {/* ── PODCAST mode — full remaining body ───────────────────────── */}
         {activeProduct === "podcast" && (
           <PodcastAgentPanel />
+        )}
+
+        {/* ── REELS mode — full remaining body ─────────────────────────── */}
+        {activeProduct === "reels" && (
+          <ReelsAgentPanel />
         )}
 
         {/* ── STUDIO mode — left rail + right workspace ─────────────── */}
@@ -1288,7 +1497,7 @@ export default function AgentManagement() {
                   className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${
                     saveState === "saved"
                       ? "bg-emerald-500 text-black"
-                      : "bg-cyan text-[rgb(var(--bg))] hover:opacity-90"
+                      : "bg-[#2563eb] text-white hover:opacity-90"
                   }`}
                 >
                   {saveState === "saved" ? <Check size={13} /> : <Layers size={13} />}
@@ -1321,7 +1530,7 @@ export default function AgentManagement() {
                 step="0.05"
                 value={temperature}
                 onChange={(e) => setTemp(parseFloat(e.target.value))}
-                className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[rgb(var(--bg-soft))] accent-cyan"
+                className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[rgb(var(--bg-soft))] accent-[#2563eb]"
               />
               <div className="mt-1.5 flex justify-between text-[10px] text-faint">
                 <span>Strict / Factual (0.0)</span>
@@ -1357,12 +1566,12 @@ export default function AgentManagement() {
                   value={newConstraint}
                   onChange={(e) => setNewConstraint(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addConstraint(); }}}
-                  className="flex-1 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] px-3 py-1.5 text-[11px] text-[rgb(var(--text))] placeholder-faint focus:border-cyan/50 focus:outline-none"
+                  className="flex-1 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] px-3 py-1.5 text-[11px] text-[rgb(var(--text))] placeholder-faint focus:border-[#2563eb]/50 focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={addConstraint}
-                  className="rounded-lg border border-[rgb(var(--border))] px-3 py-1.5 text-[11px] font-semibold text-faint transition hover:border-cyan/40 hover:text-cyan"
+                  className="rounded-lg border border-[rgb(var(--border))] px-3 py-1.5 text-[11px] font-semibold text-faint transition hover:border-[#2563eb]/40 hover:text-[#2563eb]"
                 >
                   + Add
                 </button>
@@ -1382,7 +1591,7 @@ export default function AgentManagement() {
                 onChange={(e) => setPrompt(e.target.value)}
                 rows={22}
                 spellCheck={false}
-                className="w-full resize-none rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] p-4 font-mono text-[12px] leading-relaxed text-soft focus:border-cyan/40 focus:outline-none scrollbar-thin"
+                className="w-full resize-none rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] p-4 font-mono text-[12px] leading-relaxed text-soft focus:border-[#2563eb]/40 focus:outline-none scrollbar-thin"
                 placeholder="Define this agent's system-level identity, behaviour rules, and output format here…"
               />
               <p className="mt-2 text-right text-[10px] text-faint">
@@ -1394,7 +1603,7 @@ export default function AgentManagement() {
             <div className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] px-4 py-3">
               <p className="text-[11px] text-faint leading-relaxed">
                 <span className="font-semibold text-soft">Changes take effect immediately</span> across both Studio and Lab modes after saving.
-                Currently persisted to <span className="font-mono text-xs text-cyan/70">localStorage</span> — connect Supabase
+                Currently persisted to <span className="font-mono text-xs text-[#2563eb]/70">localStorage</span> — connect Supabase
                 (<span className="font-mono text-xs">agent_configs</span> table) to sync across devices and team members.
               </p>
             </div>

@@ -65,7 +65,7 @@ export default function LocalizeButton({ script, onLocalized }) {
         <button onClick={handleReset} className="flex items-center gap-1 text-xs text-faint hover:text-soft transition">
           <ChevronLeft size={12} /> English
         </button>
-        <span className="text-[11px] font-semibold text-cyan">🌐 {activeLang.label} ✓</span>
+        <span className="text-[11px] font-semibold text-[#2563eb]">🌐 {activeLang.label} ✓</span>
       </div>
     );
   }
@@ -75,7 +75,7 @@ export default function LocalizeButton({ script, onLocalized }) {
       <button
         onClick={() => setOpen((v) => !v)}
         disabled={loading}
-        className="flex items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] px-2.5 py-1.5 text-xs font-medium text-soft transition hover:border-cyan/40 hover:text-cyan disabled:opacity-50"
+        className="flex items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] px-2.5 py-1.5 text-xs font-medium text-soft transition hover:border-[#2563eb]/40 hover:text-[#2563eb] disabled:opacity-50"
       >
         {loading ? (
           <Loader2 size={12} className="animate-spin" />
@@ -100,7 +100,7 @@ export default function LocalizeButton({ script, onLocalized }) {
                 <button
                   key={lang.id}
                   onClick={() => handleSelect(lang)}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-soft transition hover:bg-cyan/10 hover:text-cyan"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-soft transition hover:bg-[#2563eb]/10 hover:text-[#2563eb]"
                 >
                   🌐 {lang.label}
                 </button>

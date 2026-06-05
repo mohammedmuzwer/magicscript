@@ -9,24 +9,27 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // Neutral grays — no purple tint
         navy: {
-          950: "#05070f",
-          900: "#070b18",
-          800: "#0b1124",
-          700: "#111a35",
-          600: "#19264a",
-          500: "#243561",
+          950: "#171717",
+          900: "#1a1a1a",
+          800: "#212121",
+          700: "#2a2a2a",
+          600: "#333333",
+          500: "#404040",
         },
+        // Soft cyan for dark mode teal links
         cyan: {
-          DEFAULT: "#22d3ee",
-          glow: "#3ee8ff",
+          DEFAULT: "#67e8f9",
+          glow: "#a5f3fc",
         },
+        // Blue accent — only hue in the system
         electric: {
-          DEFAULT: "#5b8cff",
-          deep: "#3b5fe0",
+          DEFAULT: "#4f6ef7",
+          deep: "#3a5bdf",
         },
         teal: {
-          soft: "#2dd4bf",
+          soft: "#06b6d4",
         },
       },
       fontFamily: {
@@ -34,18 +37,19 @@ module.exports = {
         display: ["var(--font-display)", "var(--font-sans)", "sans-serif"],
       },
       boxShadow: {
-        glow: "0 0 0 1px rgba(91,140,255,0.18), 0 18px 60px -20px rgba(34,211,238,0.35)",
-        "glow-sm": "0 0 24px -6px rgba(34,211,238,0.45)",
-        "glow-lg": "0 0 90px -10px rgba(91,140,255,0.55)",
-        card: "0 24px 70px -32px rgba(2,6,20,0.85)",
+        // Neutral shadows — no coloured glow
+        glow: "0 0 0 1px rgba(79,110,247,0.14), 0 8px 24px rgba(0,0,0,0.15)",
+        "glow-sm": "0 2px 8px rgba(0,0,0,0.20)",
+        "glow-lg": "0 8px 32px rgba(0,0,0,0.25)",
+        card: "0 1px 3px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.08)",
       },
       backgroundImage: {
         "grid-fade":
-          "radial-gradient(circle at 1px 1px, rgba(91,140,255,0.13) 1px, transparent 0)",
+          "radial-gradient(circle at 1px 1px, rgba(79,110,247,0.07) 1px, transparent 0)",
         "brand-gradient":
-          "linear-gradient(120deg, #22d3ee 0%, #5b8cff 50%, #2dd4bf 100%)",
+          "linear-gradient(120deg, #4f6ef7 0%, #3a5bdf 100%)",
         "hero-glow":
-          "radial-gradient(60% 60% at 50% 0%, rgba(34,211,238,0.22) 0%, rgba(7,11,24,0) 70%)",
+          "radial-gradient(60% 60% at 50% 0%, rgba(79,110,247,0.10) 0%, transparent 70%)",
       },
       keyframes: {
         "fade-up": {

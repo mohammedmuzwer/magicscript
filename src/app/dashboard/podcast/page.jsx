@@ -10,9 +10,10 @@ import {
 
 import { useAuth } from "@/lib/auth-context";
 import Logo from "@/components/ui/logo";
-import ThemeToggle from "@/components/ui/theme-toggle";
 import { Avatar } from "@/components/dashboard/dashboard-shell";
 import WorkspaceModeToggle from "@/components/ui/workspace-mode-toggle";
+import NavActions from "@/components/ui/nav-actions";
+import NewSessionButton from "@/components/ui/new-session-button";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import PodcastLeftPanel from "@/components/podcast/PodcastLeftPanel";
@@ -31,6 +32,7 @@ import Stage10 from "@/components/podcast/stages/Stage10";
 
 import { PODCAST_STAGES } from "@/lib/podcast/stages";
 import { savePodcastEpisode, getPodcastEpisode } from "@/lib/supabaseClient";
+import { TAB_STATE_KEYS, saveTabState, loadTabState } from "@/lib/tabState";
 
 const STAGE_COMPONENTS = {
   1:  Stage1,  2:  Stage2,  3:  Stage3,  4:  Stage4,  5:  Stage5,
@@ -116,6 +118,34 @@ export default function PodcastPage() {
     const stored = localStorage.getItem("ms_demo_mode");
     if (stored !== null) setDemoMode(stored === "true");
   }, []);
+
+  // ── Lightweight cross-tab persistence ────────────────────────────────────────
+  // Restores where the user left off when returning to this tab. Skipped when a
+  // ?load=<id> hydration is in play — the history hydration takes precedence.
+  const [restored, setRestored] = useState(false);
+
+  useEffect(() => {
+    if (!loadId) {
+      const s = loadTabState(TAB_STATE_KEYS.podcast);
+      if (s) {
+        if (s.currentStage   != null) setCurrentStage(s.currentStage);
+        if (s.approvedStages != null) setApprovedStages(s.approvedStages);
+        if (s.stageData      != null) setStageData(s.stageData);
+        if (s.livePreview    != null) setLivePreview(s.livePreview);
+        if (s.episodeId      != null) setEpisodeId(s.episodeId);
+      }
+    }
+    setRestored(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!restored || hydrating) return;
+    saveTabState(TAB_STATE_KEYS.podcast, {
+      currentStage, approvedStages, stageData, livePreview, episodeId,
+      busy: dbSaveState === "saving",
+    });
+  }, [restored, hydrating, currentStage, approvedStages, stageData, livePreview, episodeId, dbSaveState]);
 
   function toggleDemoMode() {
     setDemoMode((prev) => {
@@ -207,54 +237,16 @@ export default function PodcastPage() {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-[rgb(var(--bg))]">
 
-      {/* ── TOP NAV (h-16 — matches Agents / History pages) ──────────────── */}
-      <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-[rgb(var(--border))] glass-strong px-4 lg:px-6">
+      {/* ── TOP NAV (h-14, solid bg — matches Reels / Studio tab headers) ── */}
+      <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] px-4">
         <div className="flex items-center gap-3">
-          <Logo className="h-7 w-auto" href="/dashboard" />
+          <Logo size={26} href="/dashboard" />
+          <div className="h-5 w-px bg-[rgb(var(--border))]" />
           <WorkspaceModeToggle activeOverride="podcast" />
         </div>
-        <nav className="hidden items-center gap-0.5 md:flex">
-          {[
-            { label: "Agents",  href: "/dashboard/agents"   },
-            { label: "Library", href: "/dashboard/library"  },
-            { label: "History", href: "/dashboard/history"  },
-            { label: "🔑 API",  href: "/dashboard/settings" },
-          ].map((l) => (
-            <Link key={l.href} href={l.href}
-              className="rounded-lg px-3 py-1.5 text-xs font-semibold text-soft transition hover:bg-electric/8 hover:text-[rgb(var(--text))]">
-              {l.label}
-            </Link>
-          ))}
-        </nav>
         <div className="flex items-center gap-2">
-          <Link href="/dashboard/billing"
-            className="hidden items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel))] px-2.5 py-1.5 text-xs font-semibold sm:flex">
-            <Zap size={13} className="text-cyan" />
-            <span className="text-cyan">{user.credits}</span>
-            <span className="text-faint">credits</span>
-          </Link>
-          <ThemeToggle />
-          <div className="relative">
-            <button onClick={() => setMenuOpen((v) => !v)}
-              className="flex items-center gap-1.5 rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))] py-1 pl-1 pr-2">
-              <Avatar user={user} size={26} />
-              <ChevronDown size={13} className="hidden text-faint sm:block" />
-            </button>
-            {menuOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 z-20 mt-2 w-52 overflow-hidden rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))] p-1.5 shadow-card">
-                  <div className="border-b border-[rgb(var(--border))] px-3 py-2.5">
-                    <div className="text-sm font-semibold">{user.name}</div>
-                    <div className="truncate text-xs text-faint">{user.email}</div>
-                  </div>
-                  <Link href="/dashboard/profile" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-soft hover:bg-electric/8 transition"><UserCircle size={15}/> Profile</Link>
-                  <Link href="/dashboard/billing" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-soft hover:bg-electric/8 transition"><CreditCard size={15}/> Subscription</Link>
-                  <button onClick={() => { logout(); router.push("/"); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-rose-300 hover:bg-rose-500/10 transition"><LogOut size={15}/> Log out</button>
-                </div>
-              </>
-            )}
-          </div>
+          {currentStage > 1 && <NewSessionButton onConfirm={handleReset} />}
+          <NavActions />
         </div>
       </header>
 
@@ -289,12 +281,12 @@ export default function PodcastPage() {
       {/* ── DB Save status toast (appears after Stage 8 approval) ─────────── */}
       {dbSaveState !== "idle" && (
         <div className={`shrink-0 flex items-center gap-2 px-4 py-2 text-xs font-semibold transition-all ${
-          dbSaveState === "saving" ? "bg-cyan/10 text-cyan border-b border-cyan/20" :
+          dbSaveState === "saving" ? "bg-[#2563eb]/10 text-[#2563eb] border-b border-[#2563eb]/20" :
           dbSaveState === "saved"  ? "bg-emerald-500/10 text-emerald-400 border-b border-emerald-500/20" :
           "bg-rose-500/10 text-rose-400 border-b border-rose-500/20"
         }`}>
           {dbSaveState === "saving" && <>
-            <span className="h-2 w-2 rounded-full bg-cyan animate-pulse" />
+            <span className="h-2 w-2 rounded-full bg-[#2563eb] animate-pulse" />
             Saving episode to database…
           </>}
           {dbSaveState === "saved" && <>
@@ -309,7 +301,7 @@ export default function PodcastPage() {
       )}
 
       {/* ── 3-PANEL BODY ────────────────────────────────────────────────────── */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="tab-content-enter flex flex-1 overflow-hidden">
 
         {/* LEFT — Stage Navigator */}
         <PodcastLeftPanel
@@ -328,7 +320,7 @@ export default function PodcastPage() {
                 {currentStage > 1 && (
                   <button
                     onClick={() => handleGoToStage(currentStage - 1)}
-                    className="flex items-center gap-1 rounded-lg border border-[rgb(var(--border))] px-2 py-1.5 text-xs text-faint hover:text-soft hover:border-cyan/30 transition"
+                    className="flex items-center gap-1 rounded-lg border border-[rgb(var(--border))] px-2 py-1.5 text-xs text-faint hover:text-soft hover:border-[#2563eb]/30 transition"
                   >
                     <ChevronLeft size={13} /> Back
                   </button>
@@ -369,8 +361,8 @@ export default function PodcastPage() {
 
             {/* Topic journey strip — shows once topic is locked */}
             {stageData[1]?.topic?.title && (
-              <div className="flex items-center gap-2 border-t border-[rgb(var(--border))] bg-cyan/5 px-6 py-1.5">
-                <span className="text-[9px] font-black uppercase tracking-[0.15em] text-cyan shrink-0">Topic</span>
+              <div className="flex items-center gap-2 border-t border-[rgb(var(--border))] bg-[#2563eb]/5 px-6 py-1.5">
+                <span className="text-[9px] font-black uppercase tracking-[0.15em] text-[#2563eb] shrink-0">Topic</span>
                 <span className="text-[11px] font-semibold text-[rgb(var(--text))] truncate">
                   {stageData[1].topic.title}
                 </span>

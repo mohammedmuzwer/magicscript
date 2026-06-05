@@ -39,7 +39,7 @@ export default function TopicQuickChips({ bucketId, onSelect }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
             onClick={() => onSelect(t)}
-            className="rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--panel))] px-3 py-1 text-xs font-medium text-soft transition hover:border-cyan/40 hover:text-cyan"
+            className="rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--panel))] px-3 py-1 text-xs font-medium text-soft transition hover:border-[#2563eb]/40 hover:text-[#2563eb]"
           >
             {t}
           </motion.button>
@@ -48,7 +48,7 @@ export default function TopicQuickChips({ bucketId, onSelect }) {
         <button
           onClick={handleRefresh}
           disabled={refreshing}
-          className="flex items-center gap-1 text-[11px] text-faint transition hover:text-cyan disabled:opacity-50"
+          className="flex items-center gap-1 text-[11px] text-faint transition hover:text-[#2563eb] disabled:opacity-50"
         >
           <RefreshCw size={11} className={refreshing ? "animate-spin" : ""} />
           Refresh ({REELS_CREDITS.REFRESH_TRENDING}cr)

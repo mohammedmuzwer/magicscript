@@ -11,7 +11,7 @@ export const PODCAST_PIPELINE_AGENTS = [
     stageNum: 1,
     label: "Topic Discovery",
     description: "Takes a keyword or reference link and produces 5 ranked, scored topic candidates — each with demand score, competition gap, reframe, and a Tamil Nadu opening line.",
-    color: "cyan",
+    color: "s1",
     defaultModel: "gemini",
     fixedPrompt: `STAGE 1 — TOPIC DISCOVERY
 Role: Surface 5 ranked, scored candidate topics from a keyword.
@@ -48,7 +48,7 @@ OUTPUT: Valid JSON only — 5 topics array + summary object`,
     stageNum: 2,
     label: "Topic Lock",
     description: "Locks the chosen topic and defines the angle: frame, promise, Doctor Farmer authority statement, and safety flag. Generates 4 pillars + audience portraits + carry-forward signals for stages 3–9.",
-    color: "violet",
+    color: "s2",
     defaultModel: "gemini",
     fixedPrompt: `STAGE 2 — TOPIC LOCK
 Role: Lock one topic and define the angle. Do NOT research. Do NOT write content.
@@ -85,7 +85,7 @@ OUTPUT: Valid JSON only — angle + pillars + audience + signals`,
     stageNum: 3,
     label: "Question Discovery",
     description: "Gathers 25 questions across 4 categories (Foundation, Audience-Discovered, Myth-Busting, Team-Fed) using 6 sources. No filtering at this stage — filtering happens in Stage 5.",
-    color: "blue",
+    color: "s3",
     defaultModel: "gemini",
     fixedPrompt: `STAGE 3 — QUESTION DISCOVERY
 Role: Gather 25 questions across 4 categories. No filtering here — Stage 5 decides.
@@ -125,7 +125,7 @@ OUTPUT: Valid JSON only — foundation + audience + myth + team + all_questions 
     stageNum: 4,
     label: "Research",
     description: "Authority Firewall — grades every claim against the 4-tier Hierarchy of Evidence (GREEN/YELLOW/BLUE/RED). Runs in 5 client-side chunks + 1 summary pass. Never invents citations.",
-    color: "indigo",
+    color: "s4",
     defaultModel: "gemini",
     fixedPrompt: `STAGE 4 — RESEARCH (AUTHORITY FIREWALL)
 Role: Grade every claim. Sources: PubMed, Cochrane, ICMR-NIN, WHO, RSSDI, IDF.
@@ -164,7 +164,7 @@ OUTPUT: Valid JSON — claims array + myth_ledger + indian_context + confidence_
     stageNum: 5,
     label: "Question Lock & Sequencing",
     description: "Part A: decides what to do with RED claims (convert/drop/flag). Part B: arranges all approved questions into the fixed 7-section engagement arc with 2 demo triggers. Part C: invites doctor reorder.",
-    color: "amber",
+    color: "s5",
     defaultModel: "gemini",
     fixedPrompt: `STAGE 5 — QUESTION LOCK & SEQUENCING
 Role: Three parts. Does NOT write answers. Does NOT research.
@@ -205,7 +205,7 @@ OUTPUT: Valid JSON — red_decisions + arc (7 sections) + overlap_resolutions + 
     stageNum: 6,
     label: "Answer Writer",
     description: "Writes the full podcast script — a real two-person conversation between Interviewer and Dr. Prabhakar — in the exact order Stage 5 locked. Runs chunked across 7 sections. Claude Sonnet is default for voice quality.",
-    color: "violet",
+    color: "s6",
     defaultModel: "claude",
     fixedPrompt: `STAGE 6 — ANSWER WRITER
 Role: Write the complete podcast script as a real two-person conversation.
@@ -254,7 +254,7 @@ OUTPUT: Valid JSON — sections array with interviewer/prabhakar dialogue + demo
     stageNum: 7,
     label: "Segments & Engagement",
     description: "Turns the approved Q&A script into a fully designed show: segment map, 2 physical demonstrations, Superfood of the Day segment, lead magnet, and 2 CTA injection points.",
-    color: "teal",
+    color: "s7",
     defaultModel: "gemini",
     fixedPrompt: `STAGE 7 — SEGMENTS & ENGAGEMENT DESIGN
 Role: Turn approved Q&A into a fully designed show. Add structure, entertainment, demonstrations.
@@ -296,7 +296,7 @@ OUTPUT: Valid JSON — segmentMap + demonstrations + superfood + ctaPoints + lea
     stageNum: 8,
     label: "Script Assembly",
     description: "Stitches every approved piece into one complete two-column production script. Left column = spoken dialogue (exact from Stage 6). Right column = production cues. Creates nothing new — only arranges approved material.",
-    color: "orange",
+    color: "s8",
     defaultModel: "gemini",
     fixedPrompt: `STAGE 8 — SCRIPT ASSEMBLY
 Role: Stitch every approved piece into one complete, shootable two-column production script.
@@ -339,7 +339,7 @@ OUTPUT: Valid JSON only — totalRuntime + runSheet + scriptBlocks array`,
     stageNum: 9,
     label: "Recommended Reels",
     description: "Identifies 8–12 high-virality reel opportunities from the production script. Each reel is a genuine moment from the script — no invented dialogue. Claude Sonnet is default for hook writing quality.",
-    color: "pink",
+    color: "s9",
     defaultModel: "claude",
     fixedPrompt: `STAGE 9 — RECOMMENDED REELS SHEET
 Role: Identify 8–12 high-virality reel opportunities from the production script.
@@ -384,7 +384,7 @@ OUTPUT: Valid JSON — reels array + summary (most viral, best for series, best 
     stageNum: 10,
     label: "Translation / Localisation",
     description: "Translates and culturally adapts the approved script into Tamil, Tanglish, Hindi, or other regional languages — sounding native, not literally translated. Preserves all medical accuracy and Dr. Prabhakar's voice.",
-    color: "emerald",
+    color: "s10",
     defaultModel: "gemini",
     fixedPrompt: `STAGE 10 — TRANSLATION / LOCALISATION
 Role: Translate and culturally adapt the approved script. Sound native — not literally translated.
@@ -453,15 +453,39 @@ export function saveCustomPrompt(agentId, text) {
   } catch {}
 }
 
-/** Stage colour map */
+/** Stage colour map — vibrant per-stage keys (Change 4) */
+// Helper to build a colour entry from a hex value
+function c(hex) {
+  return {
+    bg:     `bg-[${hex}]/12`,
+    text:   `text-[${hex}]`,
+    border: `border-[${hex}]/30`,
+    dot:    `bg-[${hex}]`,
+    hex,
+  };
+}
+
 export const STAGE_COLOR_MAP = {
-  cyan:    { bg: "bg-cyan/10",    text: "text-cyan",    border: "border-cyan/25",    dot: "bg-cyan" },
-  violet:  { bg: "bg-violet-500/10", text: "text-violet-400", border: "border-violet-500/25", dot: "bg-violet-400" },
-  blue:    { bg: "bg-blue-500/10",  text: "text-blue-400",  border: "border-blue-500/25",  dot: "bg-blue-400" },
-  indigo:  { bg: "bg-indigo-500/10",text: "text-indigo-400",border: "border-indigo-500/25",dot: "bg-indigo-400" },
-  amber:   { bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/25", dot: "bg-amber-400" },
-  teal:    { bg: "bg-teal-400/10",  text: "text-teal-400",  border: "border-teal-400/25",  dot: "bg-teal-400" },
-  orange:  { bg: "bg-orange-500/10",text: "text-orange-400",border: "border-orange-500/25",dot: "bg-orange-400" },
-  pink:    { bg: "bg-pink-500/10",  text: "text-pink-400",  border: "border-pink-500/25",  dot: "bg-pink-400" },
-  emerald: { bg: "bg-emerald-500/10",text:"text-emerald-400",border:"border-emerald-500/25",dot:"bg-emerald-400" },
+  // ── Dedicated per-stage vibrant keys ─────────────────────────────────────
+  s1:  c("#2563eb"),   // Electric Blue
+  s2:  c("#7c3aed"),   // Vivid Violet
+  s3:  c("#16a34a"),   // Emerald Green
+  s4:  c("#f97316"),   // Vivid Orange
+  s5:  c("#ef4444"),   // Crimson Red
+  s6:  c("#ec4899"),   // Hot Pink
+  s7:  c("#d97706"),   // Vivid Amber
+  s8:  c("#0ea5e9"),   // Sky Blue
+  s9:  c("#84cc16"),   // Lime Green
+  s10: c("#8b5cf6"),   // Electric Purple
+
+  // ── Legacy aliases — map to nearest vibrant colour ───────────────────────
+  cyan:    c("#2563eb"),   // was teal-ish → now Electric Blue
+  violet:  c("#7c3aed"),
+  blue:    c("#2563eb"),
+  indigo:  c("#7c3aed"),
+  amber:   c("#f97316"),
+  teal:    c("#2563eb"),   // teal removed → Electric Blue
+  orange:  c("#f97316"),
+  pink:    c("#ec4899"),
+  emerald: c("#16a34a"),
 };

@@ -1,137 +1,221 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle2, Lock, Circle, ShieldAlert } from "lucide-react";
-import { REELS_STAGES } from "@/lib/reels/stages";
+import { Check, Lock, KeyRound } from "lucide-react";
+import { getReelsModelPref, setReelsModelPref } from "@/lib/reels/stages";
 
+// ── Micro Content — 5 navigable stages with vibrant identity colours ──────────
+const MICRO_STAGES = [
+  { id: 1, label: "Topic Discovery",   color: "#2563eb" }, // Electric Blue
+  { id: 2, label: "Topic Validation",  color: "#7c3aed" }, // Vivid Violet
+  { id: 3, label: "Med Quick-Check",   color: "#ef4444" }, // Crimson Red
+  { id: 4, label: "Script Generation", color: "#ec4899" }, // Hot Pink
+  { id: 5, label: "Final Output",      color: "#10b981" }, // Emerald
+];
+
+// ── Model definitions ─────────────────────────────────────────────────────────
+const MODELS = [
+  { id: "gemini",  label: "Gemini",  icon: "✦", lsKeys: ["V_KEY_GOOGLE", "ms_gemini_key"],    activeClass: "bg-[#1a73e8] text-white border-transparent",                                              settingsHint: "Add a Google AI key in Settings → API" },
+  { id: "claude",  label: "Claude",  icon: "◆", lsKeys: ["V_KEY_CLAUDE", "ms_anthropic_key"],  activeClass: "bg-[rgb(var(--bg-active-tint))] border-[rgb(var(--accent))]/25 text-[rgb(var(--accent))]", settingsHint: "Add an Anthropic key in Settings → API" },
+  { id: "chatgpt", label: "ChatGPT", icon: "⊕", lsKeys: ["V_KEY_GPT", "ms_openai_key"],        activeClass: "bg-emerald-500/15 border-emerald-500/25 text-emerald-400",                                settingsHint: "Add an OpenAI key in Settings → API" },
+];
+
+function hasKey(lsKeys) {
+  if (typeof window === "undefined") return false;
+  return lsKeys.some((k) => !!localStorage.getItem(k));
+}
+
+// ── Stage row — vibrant colored dot, no numbers in the name ───────────────────
 function StageRow({ stage, status, onClick }) {
-  const isApproved  = status === "approved";
-  const isActive    = status === "active";
-  const isAvailable = status === "available";
-  const isLocked    = status === "locked";
+  const isApproved = status === "approved";
+  const isActive   = status === "active";
+  const isLocked   = status === "locked";
+  const c = stage.color;
+
+  const filled = isActive || isApproved;
+  const dotStyle = filled
+    ? { background: c, color: "#ffffff" }
+    : { background: c + "26", color: c + "99" }; // locked: 15% bg, 60% colour text
 
   return (
     <button
-      onClick={() => (isApproved || isActive || isAvailable) && onClick(stage.id)}
+      onClick={() => !isLocked && onClick(stage.id)}
       disabled={isLocked}
-      className={`group flex w-full items-start gap-2.5 rounded-xl px-3 py-2.5 text-left transition-all ${
-        isActive
-          ? "bg-[rgb(var(--panel))] border"
-          : isApproved
-          ? "hover:bg-[rgb(var(--panel))]/50"
-          : isAvailable
-          ? "hover:bg-[rgb(var(--panel))]/30"
-          : "opacity-40 cursor-not-allowed"
+      className={`group flex w-full items-center gap-2.5 rounded-lg text-left transition-all ${
+        isApproved ? "hover:bg-[rgb(var(--bg-soft))]" : isLocked ? "cursor-default" : "hover:bg-[rgb(var(--bg-soft))]"
       }`}
-      style={isActive ? { borderColor: stage.color + "50" } : {}}
+      style={{
+        padding: "7px 10px",
+        background: isActive ? c + "0f" : undefined,           // active: 6% tint
+        boxShadow: isActive ? `inset 2px 0 0 0 ${c}` : undefined, // active: 2px left border
+      }}
     >
-      {/* Status icon */}
-      <div className="mt-0.5 shrink-0">
-        {isApproved ? (
-          <CheckCircle2 size={14} style={{ color: stage.color }} />
-        ) : isActive ? (
-          <div
-            className="h-3.5 w-3.5 rounded-full border-2 animate-pulse"
-            style={{ borderColor: stage.color, backgroundColor: stage.color + "30" }}
-          />
-        ) : isLocked ? (
-          <Lock size={13} className="text-faint" />
-        ) : (
-          <Circle size={13} className="text-faint" />
-        )}
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-faint">
-            {stage.id}.
-          </span>
-          <p className={`text-xs font-semibold truncate ${
-            isActive ? "text-[rgb(var(--text))]" : isApproved ? "text-soft" : "text-faint"
-          }`}>
-            {stage.label}
-          </p>
-          {stage.authorityFirewall && (
-            <ShieldAlert size={11} className="shrink-0" style={{ color: "#10b981" }} />
-          )}
-        </div>
-        {isActive && (
-          <p className="text-[10px] text-faint leading-snug mt-0.5 truncate">{stage.desc}</p>
-        )}
-      </div>
+      <span
+        className="grid shrink-0 place-items-center rounded-full text-[11px] font-bold tabular-nums"
+        style={{ width: 26, height: 26, ...dotStyle }}
+      >
+        {isApproved ? <Check size={13} strokeWidth={3} /> : `S${stage.id}`}
+      </span>
+      <span
+        className="flex-1 truncate"
+        style={{
+          fontSize: 13,
+          fontWeight: isActive ? 700 : isApproved ? 600 : 500,
+          color: isLocked ? "rgb(var(--text-faint))" : "rgb(var(--text))",
+        }}
+      >
+        {stage.label}
+      </span>
+      {isLocked && <Lock size={12} className="shrink-0 text-faint/50" />}
     </button>
   );
 }
 
-/**
- * Reels stage navigator — 5-stage condensed pipeline.
- * Mirrors PodcastLeftPanel exactly in look and behaviour.
- */
-export default function ReelsLeftPanel({ currentStage, approvedStages = [], onGoToStage }) {
-  function getStatus(stageId) {
-    if (approvedStages.includes(stageId)) return "approved";
-    if (stageId === currentStage)         return "active";
-    const maxApproved = approvedStages.length ? Math.max(...approvedStages) : 0;
-    if (stageId <= maxApproved + 1)       return "available";
-    return "locked";
+// ── Main panel ────────────────────────────────────────────────────────────────
+export default function ReelsLeftPanel({
+  currentStage,
+  approvedStages = [],
+  onGoToStage,
+  demoMode = false,
+  onToggleDemoMode,
+}) {
+  const [modelPref, setModelPrefState] = useState("gemini");
+  const [apiStatus, setApiStatus]      = useState({ gemini: false, claude: false, chatgpt: false });
+
+  useEffect(() => {
+    const check = () => setApiStatus({
+      gemini:  hasKey(MODELS[0].lsKeys),
+      claude:  hasKey(MODELS[1].lsKeys),
+      chatgpt: hasKey(MODELS[2].lsKeys),
+    });
+    check();
+    window.addEventListener("storage", check);
+    return () => window.removeEventListener("storage", check);
+  }, []);
+
+  useEffect(() => {
+    setModelPrefState(getReelsModelPref(4));
+    const handler = (e) => { if (e.detail?.stageNum === 4) setModelPrefState(e.detail.model); };
+    window.addEventListener("reelsModelPrefChange", handler);
+    return () => window.removeEventListener("reelsModelPrefChange", handler);
+  }, []);
+
+  function handleModelSelect(modelId) {
+    if (demoMode || !apiStatus[modelId]) return;
+    setModelPrefState(modelId);
+    setReelsModelPref(4, modelId);
+    window.dispatchEvent(new CustomEvent("reelsModelPrefChange", { detail: { stageNum: 4, model: modelId } }));
   }
 
-  const progress = approvedStages.length / REELS_STAGES.length;
+  const approved5 = approvedStages.filter((id) => id <= 5);
+  const cur = Math.min(5, currentStage);
+
+  function getStatus(id) {
+    if (approved5.includes(id)) return "approved";
+    if (id === cur)             return "active";
+    const max = approved5.length ? Math.max(...approved5) : 0;
+    return id <= max + 1 ? "available" : "locked";
+  }
+
+  const progress = approved5.length / MICRO_STAGES.length;
 
   return (
-    <aside className="hidden w-[260px] shrink-0 flex-col border-r border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] lg:flex">
+    <aside className="hidden w-[200px] shrink-0 flex-col border-r border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] lg:flex">
 
-      {/* Header */}
-      <div className="border-b border-[rgb(var(--border))] px-4 py-3">
-        <p className="text-sm font-bold">Reel Builder</p>
-        <p className="text-[11px] text-faint">5-Stage Production Pipeline</p>
-
-        {/* Progress bar */}
-        <div className="mt-3">
-          <div className="flex justify-between text-[10px] text-faint mb-1">
-            <span>{approvedStages.length} of {REELS_STAGES.length} stages approved</span>
-            <span>{Math.round(progress * 100)}%</span>
-          </div>
-          <div className="h-1 w-full rounded-full bg-[rgb(var(--border))]">
-            <motion.div
-              className="h-full rounded-full"
-              style={{ background: "linear-gradient(90deg,#22d3ee,#818cf8)" }}
-              animate={{ width: `${progress * 100}%` }}
-              transition={{ duration: 0.5 }}
-            />
-          </div>
+      {/* Title */}
+      <div className="border-b border-[rgb(var(--border))] px-3.5 pt-3.5 pb-3">
+        <p className="font-display text-sm font-bold text-[rgb(var(--text))]">Micro Content Builder</p>
+        <p className="text-[11px] font-medium text-faint">5-Stage Reel Pipeline</p>
+        <div className="mt-2.5 flex items-center justify-between">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.05em] text-faint">
+            {approved5.length}/{MICRO_STAGES.length} stages complete
+          </span>
+          <span className="text-[10px] font-bold text-[rgb(var(--accent))]">{Math.round(progress * 100)}%</span>
+        </div>
+        <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[rgb(var(--panel-soft))]">
+          <motion.div className="h-full rounded-full bg-[rgb(var(--accent))]"
+            animate={{ width: `${progress * 100}%` }} transition={{ duration: 0.5 }} />
         </div>
       </div>
 
+      {/* Demo badge */}
+      {demoMode && (
+        <div className="flex justify-center border-b border-[rgb(var(--border))] py-2">
+          <span
+            className="inline-flex items-center"
+            style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", color: "#d97706", background: "rgba(217,119,6,0.10)", border: "0.5px solid rgba(217,119,6,0.25)", borderRadius: 4, padding: "2px 8px" }}
+          >
+            DEMO MODE
+          </span>
+        </div>
+      )}
+
       {/* Stage list */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
-        {REELS_STAGES.map((stage) => (
-          <StageRow
-            key={stage.id}
-            stage={stage}
-            status={getStatus(stage.id)}
-            onClick={onGoToStage}
-          />
+      <div className="flex-1 space-y-0.5 overflow-y-auto px-2 py-3">
+        {MICRO_STAGES.map((stage) => (
+          <StageRow key={stage.id} stage={stage} status={getStatus(stage.id)} onClick={onGoToStage} />
         ))}
       </div>
 
-      {/* Legend — Fact-check grades (same as Podcast for consistency) */}
-      <div className="border-t border-[rgb(var(--border))] p-3">
-        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-faint mb-2">
-          Fact-Check Grades
+      {/* Model selector — pb-14 clears the fixed 52px bottom bar */}
+      <div className="space-y-2 border-t border-[rgb(var(--border))] px-3 pt-3 pb-14">
+        <p className="text-[10px] font-bold uppercase tracking-[0.07em] text-faint">
+          {demoMode ? "Model (demo mode)" : "Model"}
         </p>
-        {[
-          { color: "#22c55e", label: "Green — verified" },
-          { color: "#f59e0b", label: "Yellow — partial" },
-          { color: "#ef4444", label: "Red — no source" },
-          { color: "#3b82f6", label: "Blue — clinical" },
-        ].map(({ color, label }) => (
-          <div key={label} className="flex items-center gap-2 text-[10px] text-faint mb-1">
-            <div className="h-2 w-2 rounded-full shrink-0" style={{ background: color }} />
-            {label}
-          </div>
-        ))}
+        <div className="flex flex-col gap-1">
+          {MODELS.map((m) => {
+            const hasApiKey  = apiStatus[m.id];
+            const isSelected = modelPref === m.id;
+            const isDisabled = demoMode || !hasApiKey;
+            return (
+              <button
+                key={m.id}
+                onClick={() => handleModelSelect(m.id)}
+                disabled={isDisabled}
+                title={isDisabled ? (demoMode ? "Disabled in demo mode" : m.settingsHint) : `Use ${m.label}`}
+                className={`w-full rounded-lg border px-2.5 py-1.5 text-left text-[12px] font-medium transition-all ${
+                  isDisabled
+                    ? "cursor-not-allowed border-[rgb(var(--border))] bg-[rgb(var(--panel-soft))] opacity-40"
+                    : isSelected
+                    ? m.activeClass
+                    : "border-[rgb(var(--border))] bg-[rgb(var(--panel-soft))] text-faint hover:text-soft"
+                }`}
+              >
+                <span className="flex items-center justify-between gap-1">
+                  <span className="flex items-center gap-1.5"><span>{m.icon}</span><span>{m.label}</span></span>
+                  {!hasApiKey && !demoMode && <KeyRound size={9} className="shrink-0 text-faint/50" />}
+                  {demoMode && <Lock size={9} className="shrink-0 text-faint/50" />}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {!demoMode && !Object.values(apiStatus).some(Boolean) && (
+          <p className="text-[9px] leading-snug text-faint/50 pt-0.5">
+            Add API keys in{" "}
+            <a href="/dashboard/settings" className="underline hover:text-faint">Settings → API</a>
+          </p>
+        )}
+
+        {/* Demo / Live API toggle */}
+        {onToggleDemoMode && (
+          <button
+            onClick={onToggleDemoMode}
+            className={`mt-1 flex w-full items-center justify-between rounded-xl border px-3 py-2 transition-all duration-200 ${
+              demoMode ? "border-orange-400/30 bg-orange-400/10" : "border-emerald-500/30 bg-emerald-500/10"
+            }`}
+          >
+            <span className={`text-[11px] font-bold tracking-wide ${demoMode ? "text-orange-400" : "text-emerald-400"}`}
+              style={demoMode ? { color: "#d97706" } : undefined}>
+              {demoMode ? "Demo" : "Live API"}
+            </span>
+            <div style={{ position: "relative", width: 52, height: 28, borderRadius: 14, flexShrink: 0, backgroundColor: demoMode ? "#fb923c" : "#22c55e", transition: "background-color 0.25s ease" }}>
+              <div style={{ position: "absolute", top: 2, left: 2, width: 24, height: 24, borderRadius: "50%", backgroundColor: "#ffffff", boxShadow: "0 2px 4px rgba(0,0,0,0.3)", transform: demoMode ? "translateX(24px)" : "translateX(0px)", transition: "transform 0.25s ease" }} />
+            </div>
+          </button>
+        )}
       </div>
     </aside>
   );

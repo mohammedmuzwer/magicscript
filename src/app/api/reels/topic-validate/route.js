@@ -65,10 +65,10 @@ Produce the full validation report as valid JSON (no markdown, no code fences):
     "delta": 0
   },
   "verify": {
-    "ubersuggest": "exact keyword phrase to check in Ubersuggest for India search volume",
-    "answer_the_public": "exact phrase to enter in Answer the Public",
-    "google_trends": "exact comparison — e.g. term A vs term B",
-    "seo_angle": "related keyword gaining traction now in Indian health/wellness SEO"
+    "ubersuggest": "2–4 word search phrase a patient in India would type — e.g. 'diabetes fasting India' NOT 'diabetes does India'",
+    "reddit_search": "2–4 word phrase that matches how patients title Reddit posts — e.g. 'intermittent fasting diabetes' NOT brand names or doctor names",
+    "google_trends": "two specific terms to compare separated by ' vs ' — e.g. 'intermittent fasting vs keto for diabetes' — both must be real searchable phrases",
+    "seo_angle": "a long-tail keyword gaining SEO traction in Indian health search in 2024 — e.g. 'diabetes diet plan South Indian' or 'blood sugar fasting protocol India'"
   },
   "opening_line": "First 3 seconds — exact sentence that stops the scroll. Must: be specific to Tamil Nadu / South India, create immediate relevance for a diabetic viewer, use Doctor Farmer's clinical voice, NOT start with 'Today I will talk about'. Can be Tanglish."
 }

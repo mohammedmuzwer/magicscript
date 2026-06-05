@@ -39,11 +39,11 @@ export default function ReelsModelToggle({ stageNum, onChange, disabled = false,
           title="Use Gemini 2.5 Flash for this stage"
           className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[10px] font-bold transition-all ${
             pref === "gemini"
-              ? "bg-cyan/15 text-cyan border border-cyan/30 shadow-sm"
+              ? "bg-[#2563eb]/15 text-[#2563eb] border border-[#2563eb]/30 shadow-sm"
               : "text-faint hover:text-soft"
           }`}
         >
-          <span className={`h-1.5 w-1.5 rounded-full transition-colors ${pref === "gemini" ? "bg-cyan" : "bg-faint/30"}`} />
+          <span className={`h-1.5 w-1.5 rounded-full transition-colors ${pref === "gemini" ? "bg-[#2563eb]" : "bg-faint/30"}`} />
           Gemini
         </button>
 

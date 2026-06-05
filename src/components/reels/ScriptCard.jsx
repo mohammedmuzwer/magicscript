@@ -25,11 +25,11 @@ const STYLE_META = {
     badge: "📋 Punchy Education Script",
     tone: "Confident & Authoritative",
     format: "Single-Column Punchy",
-    border: "border-l-cyan-500",
-    card: "bg-teal-50/50 dark:bg-[rgb(var(--panel))] border border-teal-200 dark:border-[rgb(var(--border))]",
-    accentBg: "bg-teal-100/70 dark:bg-cyan-500/5",
-    headerColor: "text-teal-900 dark:text-cyan-400",
-    subtextColor: "text-teal-700/80 dark:text-faint",
+    border: "border-l-[#2563eb]",
+    card: "bg-blue-50/50 dark:bg-[rgb(var(--panel))] border border-[#2563eb]/20 dark:border-[rgb(var(--border))]",
+    accentBg: "bg-blue-100/70 dark:bg-[#2563eb]/5",
+    headerColor: "text-[#2563eb] dark:text-[#60a5fa]",
+    subtextColor: "text-[#2563eb] dark:text-faint",
   },
   rebel: {
     badge: "🔥 Rebel Reach Script",
@@ -93,9 +93,9 @@ export default function ScriptCard({
         </p>
       </div>
 
-      {/* Script body */}
-      <div className="flex-1 overflow-y-auto p-4">
-        <pre className="whitespace-pre-wrap font-sans text-xs leading-relaxed text-slate-700 dark:text-soft">
+      {/* Script body — compact fixed height */}
+      <div className="p-4">
+        <pre className="whitespace-pre-wrap font-sans text-xs leading-relaxed text-slate-700 dark:text-soft max-h-[280px] overflow-y-auto">
           {displayText}
         </pre>
       </div>
@@ -117,18 +117,18 @@ export default function ScriptCard({
 
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1 rounded-lg border border-[rgb(var(--border))] px-2.5 py-1.5 text-xs font-medium text-soft transition hover:border-cyan/40 hover:text-cyan"
+          className="flex items-center gap-1 rounded-lg border border-[rgb(var(--border))] px-2.5 py-1.5 text-xs font-medium text-soft transition hover:border-[#2563eb]/40 hover:text-[#2563eb]"
         >
-          {copied ? <Check size={12} className="text-cyan" /> : <Copy size={12} />}
+          {copied ? <Check size={12} className="text-[#2563eb]" /> : <Copy size={12} />}
           {copied ? "Copied!" : "Copy"}
         </button>
 
         <button
           onClick={handleSave}
           disabled={saved}
-          className="flex items-center gap-1 rounded-lg border border-[rgb(var(--border))] px-2.5 py-1.5 text-xs font-medium text-soft transition hover:border-cyan/40 hover:text-cyan disabled:opacity-50"
+          className="flex items-center gap-1 rounded-lg border border-[rgb(var(--border))] px-2.5 py-1.5 text-xs font-medium text-soft transition hover:border-[#2563eb]/40 hover:text-[#2563eb] disabled:opacity-50"
         >
-          <BookmarkPlus size={12} className={saved ? "text-cyan" : ""} />
+          <BookmarkPlus size={12} className={saved ? "text-[#2563eb]" : ""} />
           {saved ? "Saved!" : "Save"}
         </button>
 
@@ -142,7 +142,7 @@ export default function ScriptCard({
             a.click();
             URL.revokeObjectURL(url);
           }}
-          className="ml-auto flex items-center gap-1 text-xs text-faint transition hover:text-cyan"
+          className="ml-auto flex items-center gap-1 text-xs text-faint transition hover:text-[#2563eb]"
         >
           📤 Export
         </button>

@@ -26,13 +26,299 @@ const NAV_LINKS = [
   { label: "🔑 API",  href: "/dashboard/settings", icon: KeyRound },
 ];
 
-// ── Product tabs (mirrors the Agents page sidebar) ──────────────────────────
+// ── Product tabs ──────────────────────────────────────────────────────────────
 const PRODUCT_TABS = [
   { id: "studio",  label: "Studio",  icon: Tv,      active: false },
-  { id: "reels",   label: "Reels",   icon: Film,    active: false },
+  { id: "reels",   label: "Reels",   icon: Film,    active: true  },
   { id: "podcast", label: "Podcast", icon: Mic,     active: true  },
   { id: "youtube", label: "YouTube", icon: Youtube, active: false },
 ];
+
+// ── Stage config for the 5-stage Reels pipeline ──────────────────────────────
+const REEL_STAGES = [
+  { id: 1, label: "Topic Discovery",   desc: "Keyword selected",                color: "#38bdf8" },
+  { id: 2, label: "Topic Validation",  desc: "Topics scored & selected",        color: "#818cf8" },
+  { id: 3, label: "Medical Check",     desc: "PubMed evidence verified",        color: "#22c55e" },
+  { id: 4, label: "Script Generation", desc: "Education scripts written",       color: "#f59e0b" },
+  { id: 5, label: "Final Output",      desc: "Reels ready to shoot",            color: "#06b6d4" },
+];
+
+// ── Reels History Panel ───────────────────────────────────────────────────────
+function ReelsHistoryPanel() {
+  const [sessions, setSessions] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [search,   setSearch]   = useState("");
+
+  useEffect(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem("ms_reels_sessions") || "[]");
+      setSessions(raw);
+      if (raw.length) setSelected(raw[0]);
+    } catch {}
+  }, []);
+
+  const filtered = search
+    ? sessions.filter(s => (s.keyword ?? "").toLowerCase().includes(search.toLowerCase()))
+    : sessions;
+
+  const statusColor = (s) =>
+    s.status === "completed"   ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" :
+    s.status === "in_progress" ? "text-amber-400 bg-amber-500/10 border-amber-500/20"       :
+                                 "text-faint bg-[rgb(var(--bg-soft))] border-[rgb(var(--border))]";
+
+  return (
+    <div className="flex min-h-0 flex-1 overflow-hidden">
+
+      {/* ── LEFT RAIL ─────────────────────────────────────────────────────── */}
+      <aside className="flex w-[280px] shrink-0 flex-col overflow-hidden border-r border-[rgb(var(--border))] bg-[rgb(var(--panel))]">
+        <div className="shrink-0 border-b border-[rgb(var(--border))] px-4 py-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-faint">Reels History</p>
+          <p className="mt-0.5 text-[10px] text-faint/60">
+            {sessions.length} session{sessions.length !== 1 ? "s" : ""} · auto-tracked
+          </p>
+        </div>
+
+        {/* Search */}
+        <div className="shrink-0 border-b border-[rgb(var(--border))] px-3 py-2.5">
+          <div className="flex items-center gap-2 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] px-2.5 py-1.5">
+            <Search size={12} className="shrink-0 text-faint" />
+            <input type="text" placeholder="Search by keyword…" value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="min-w-0 flex-1 bg-transparent text-[11px] text-[rgb(var(--text))] placeholder-faint focus:outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Session list */}
+        <div className="flex-1 space-y-0.5 overflow-y-auto p-2">
+          {filtered.length === 0 && (
+            <div className="px-3 py-12 text-center">
+              <Film size={22} className="mx-auto text-faint/40 mb-3" />
+              <p className="text-[11px] font-semibold text-faint mb-1">No reel sessions yet</p>
+              <p className="text-[10px] text-faint/60 leading-relaxed">
+                Start creating reels — every step is auto-saved here, even if you stop early.
+              </p>
+            </div>
+          )}
+          {filtered.map(s => {
+            const isActive = selected?.id === s.id;
+            return (
+              <button key={s.id} onClick={() => setSelected(s)}
+                className={`group flex w-full items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-all ${
+                  isActive
+                    ? "border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] ring-1 ring-inset ring-violet-500/20"
+                    : "border-transparent hover:border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-soft))]"
+                }`}
+              >
+                <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs ${
+                  isActive ? "bg-violet-500/15 text-violet-400" : "bg-[rgb(var(--bg-soft))] text-faint"
+                }`}>
+                  <Film size={12} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[11px] font-semibold text-soft capitalize">{s.keyword || "Untitled"}</p>
+                  <div className="mt-0.5 flex items-center gap-1.5">
+                    <Clock size={9} className="text-faint/70" />
+                    <p className="text-[9px] text-faint">{timeAgo(s.updatedAt ?? s.createdAt)}</p>
+                    <span className="text-faint/30">·</span>
+                    <span className={`rounded-full border px-1.5 py-0.5 text-[8px] font-bold ${statusColor(s)}`}>
+                      {s.status === "completed" ? "✓ Done" : `S${s.stageReached ?? 1}`}
+                    </span>
+                  </div>
+                </div>
+                {isActive && <ChevronRight size={10} className="shrink-0 text-violet-400" />}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="shrink-0 border-t border-[rgb(var(--border))] px-4 py-2.5">
+          <p className="text-[10px] text-faint">
+            <Database size={9} className="inline mr-1 -mt-px" />
+            Saved in localStorage · every step tracked
+          </p>
+        </div>
+      </aside>
+
+      {/* ── RIGHT DETAIL ──────────────────────────────────────────────────── */}
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        {selected ? (
+          <ReelSessionDetail session={selected} />
+        ) : (
+          <div className="flex flex-1 items-center justify-center">
+            <div className="text-center">
+              <Film size={28} className="mx-auto text-faint/40 mb-3" />
+              <p className="text-sm font-semibold text-faint">Select a session to view its progress</p>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+// ── Reel Session Detail panel ─────────────────────────────────────────────────
+function ReelSessionDetail({ session: s }) {
+  const stageReached = s.stageReached ?? 1;
+
+  return (
+    <>
+      {/* Identity bar */}
+      <div className="shrink-0 border-b border-[rgb(var(--border))] px-6 py-4">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-400">
+            <Film size={16} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest ${
+                s.status === "completed" ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-400" : "border-amber-500/25 bg-amber-500/10 text-amber-400"
+              }`}>
+                <span className="h-1 w-1 rounded-full bg-current" />
+                {s.status === "completed" ? "Completed" : "In Progress"}
+              </span>
+              <span className="text-[10px] text-faint">{formatExactDate(s.createdAt)}</span>
+            </div>
+            <h2 className="text-base font-bold capitalize">{s.keyword || "Untitled Session"}</h2>
+            <p className="mt-0.5 text-xs text-faint">
+              {s.batchSize ? `${s.batchSize} reel${s.batchSize !== 1 ? "s" : ""} · ` : ""}
+              Stopped at: {s.stageLabel ?? `Stage ${stageReached}`}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+
+        {/* Stage progress tracker */}
+        <section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))] overflow-hidden">
+          <div className="border-b border-[rgb(var(--border))] px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-faint">5-Stage Pipeline Progress</p>
+          </div>
+          <div className="divide-y divide-[rgb(var(--border))]">
+            {REEL_STAGES.map(stage => {
+              const done    = stage.id < stageReached || s.status === "completed";
+              const current = stage.id === stageReached && s.status !== "completed";
+              const pending = stage.id > stageReached;
+              return (
+                <div key={stage.id} className="grid grid-cols-[32px_1fr_auto] items-center gap-3 px-4 py-2.5">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg text-[10px] font-black"
+                    style={{ background: (done || current) ? stage.color + "22" : "rgb(var(--bg-soft))", color: (done || current) ? stage.color : "rgb(var(--text-faint))" }}>
+                    {done ? "✓" : `S${stage.id}`}
+                  </span>
+                  <div>
+                    <p className="text-xs font-semibold">{stage.label}</p>
+                    <p className="text-[10px] text-faint">{stage.desc}</p>
+                  </div>
+                  <span className={`text-[10px] font-bold uppercase tracking-wide ${
+                    done    ? "text-emerald-400" :
+                    current ? "text-amber-400"   : "text-faint/40"
+                  }`}>
+                    {done ? "✓ Done" : current ? "⏸ Stopped" : "Pending"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Topics selected */}
+        {s.selectedTopics?.length > 0 && (
+          <section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))] overflow-hidden">
+            <div className="border-b border-[rgb(var(--border))] px-4 py-3">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-faint">
+                Topics Selected ({s.selectedTopics.length})
+              </p>
+            </div>
+            <div className="divide-y divide-[rgb(var(--border))]">
+              {s.selectedTopics.map((t, i) => (
+                <div key={i} className="flex items-center gap-2 px-4 py-2.5">
+                  <span className="text-[10px] font-bold tabular-nums text-faint/60 w-4 shrink-0">{i + 1}</span>
+                  <p className="flex-1 text-[11px] text-soft">{t}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Verification results */}
+        {s.verifyResults?.length > 0 && (
+          <section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))] overflow-hidden">
+            <div className="border-b border-[rgb(var(--border))] px-4 py-3 flex items-center justify-between">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-faint">Medical Verification</p>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-emerald-400 font-bold">✅ {s.verifiedCount} passed</span>
+                {s.removedCount > 0 && <span className="text-[10px] text-rose-400 font-bold">❌ {s.removedCount} removed</span>}
+              </div>
+            </div>
+            <div className="divide-y divide-[rgb(var(--border))]">
+              {s.verifyResults.map((r, i) => (
+                <div key={i} className={`flex items-center gap-2.5 px-4 py-2 ${!r.passed ? "opacity-40" : ""}`}>
+                  <span className="text-xs shrink-0">{r.passed ? "✅" : "❌"}</span>
+                  <p className="flex-1 truncate text-[11px] text-soft">{r.title}</p>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold ${
+                    r.evidenceScore >= 70 ? "bg-emerald-500/10 text-emerald-400" :
+                    r.evidenceScore >= 40 ? "bg-amber-500/10 text-amber-400" :
+                    "bg-rose-500/10 text-rose-400"
+                  }`}>
+                    {r.evidenceScore}/100
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Final reels */}
+        {s.reels?.length > 0 && (
+          <section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))] overflow-hidden">
+            <div className="border-b border-[rgb(var(--border))] px-4 py-3">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-faint">
+                Generated Reels ({s.reels.length})
+              </p>
+            </div>
+            <div className="divide-y divide-[rgb(var(--border))]">
+              {s.reels.map((r, i) => (
+                <div key={i} className="flex items-center gap-2.5 px-4 py-2.5">
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-cyan/15 text-[10px] font-bold text-cyan">{i + 1}</span>
+                  <p className="flex-1 truncate text-[11px] text-soft">{r.topic}</p>
+                  {r.evidenceScore != null && (
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold ${
+                      r.evidenceScore >= 70 ? "bg-emerald-500/10 text-emerald-400" :
+                      r.evidenceScore >= 40 ? "bg-amber-500/10 text-amber-400" :
+                      "bg-rose-500/10 text-rose-400"
+                    }`}>
+                      🔬 {r.evidenceScore}/100
+                    </span>
+                  )}
+                  <span className="shrink-0 rounded-full border border-cyan/20 bg-cyan/8 px-2 py-0.5 text-[9px] font-semibold text-cyan">
+                    {r.shootStatus === "to_shoot" ? "📌 To Shoot" : r.shootStatus === "recorded" ? "🎥 Recorded" : "✅ Posted"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* CTA: continue session */}
+        {s.status !== "completed" && (
+          <div className="rounded-xl border border-violet-500/25 bg-violet-500/5 p-4 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold text-violet-300">Resume this session</p>
+              <p className="text-[11px] text-faint mt-0.5">Continue from Stage {s.stageReached ?? 1} where you left off.</p>
+            </div>
+            <Link href="/dashboard/reels"
+              className="flex shrink-0 items-center gap-1.5 rounded-lg bg-violet-500 px-4 py-2 text-xs font-bold text-white transition hover:opacity-90"
+            >
+              <Film size={13} /> Open Reels →
+            </Link>
+          </div>
+        )}
+
+      </div>
+    </>
+  );
+}
 
 // ── Time formatting ────────────────────────────────────────────────────────
 function timeAgo(iso) {
@@ -387,7 +673,7 @@ export default function HistoryPage() {
   const { user, ready, logout } = useAuth();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [activeProduct, setActiveProduct] = useState("podcast");
+  const [activeProduct, setActiveProduct] = useState("reels");
 
   useEffect(() => {
     if (ready && !user) router.replace("/login");
@@ -507,11 +793,10 @@ export default function HistoryPage() {
           </div>
         </div>
 
-        {/* ── PODCAST history ──────────────────────────────────────────── */}
         {activeProduct === "podcast" && <PodcastHistoryPanel />}
+        {activeProduct === "reels"   && <ReelsHistoryPanel />}
 
-        {/* ── Other tabs (disabled — placeholder) ──────────────────────── */}
-        {activeProduct !== "podcast" && (
+        {activeProduct !== "podcast" && activeProduct !== "reels" && (
           <div className="flex flex-1 items-center justify-center">
             <p className="text-sm text-faint">
               {PRODUCT_TABS.find((p) => p.id === activeProduct)?.label} history — coming soon

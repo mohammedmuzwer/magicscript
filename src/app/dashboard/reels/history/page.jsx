@@ -18,7 +18,7 @@ export default function ReelsHistoryPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link href="/dashboard/reels" className="flex items-center gap-1.5 text-sm text-faint hover:text-cyan transition">
+        <Link href="/dashboard/reels" className="flex items-center gap-1.5 text-sm text-faint hover:text-[#2563eb] transition">
           <ArrowLeft size={15} /> Back to Reels
         </Link>
       </div>
@@ -32,7 +32,7 @@ export default function ReelsHistoryPage() {
         <div className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))] p-12 text-center">
           <Clapperboard size={32} className="mx-auto mb-3 text-faint" />
           <p className="text-sm text-faint">No Reels generated yet.</p>
-          <Link href="/dashboard/reels" className="mt-3 inline-block text-sm font-semibold text-cyan hover:underline">
+          <Link href="/dashboard/reels" className="mt-3 inline-block text-sm font-semibold text-[#2563eb] hover:underline">
             Create your first Reel →
           </Link>
         </div>
@@ -48,7 +48,7 @@ export default function ReelsHistoryPage() {
             >
               <div className="mb-2 flex items-start justify-between gap-2">
                 <p className="text-sm font-semibold leading-snug line-clamp-2">{item.topic}</p>
-                <span className="shrink-0 rounded-md bg-cyan/10 px-2 py-0.5 text-[10px] font-bold text-cyan">
+                <span className="shrink-0 rounded-md bg-[#2563eb]/10 px-2 py-0.5 text-[10px] font-bold text-[#2563eb]">
                   {item.contentType}
                 </span>
               </div>

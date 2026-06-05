@@ -1,28 +1,103 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { Wand2, Clapperboard, Youtube, Mic2, Lock } from "lucide-react";
-import { useState } from "react";
+import { Lock } from "lucide-react";
+import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { TAB_STATE_KEYS, tabHasActivity } from "@/lib/tabState";
 
+// emoji  → the always-visible icon (never moves)
+// text   → the label that animates in/out (shown only when the tab is active)
+// color  → the tab's vibrant identity colour (null → Studio keeps cyan classes)
+// stateKey → localStorage key used to detect in-progress work (multitask dot)
 const MODES = [
-  { id: "studio", label: "Studio", href: "/dashboard/generate", icon: Wand2,       locked: false, soon: false },
-  { id: "reels",  label: "Reels",  href: "/dashboard/reels",    icon: Clapperboard, locked: false, soon: false },
-  { id: "youtube",label: "YouTube",href: "#",                   icon: Youtube,      locked: true,  soon: true  },
-  { id: "podcast",label: "Podcast",href: "/dashboard/podcast",  icon: Mic2,         locked: false, soon: false },
+  { id: "studio",  emoji: "🎛️", text: "Studio",                   href: "/dashboard/generate", locked: false, soon: false, color: null,      stateKey: null },
+  { id: "reels",   emoji: "⚡",  text: "Micro Content (1 min)",    href: "/dashboard/reels",    locked: false, soon: false, color: "#f97316", stateKey: TAB_STATE_KEYS.reels },
+  { id: "youtube", emoji: "🎬",  text: "Long Content (10 min)",    href: "/dashboard/youtube",  locked: false, soon: false, color: "#7c3aed", stateKey: null },
+  { id: "podcast", emoji: "🎙️", text: "Podcast Content (30 min)", href: "/dashboard/podcast",  locked: false, soon: false, color: "#f43f5e", stateKey: TAB_STATE_KEYS.podcast },
 ];
 
+// ── Per-tab button — handles its own hover state so inline colour works ───────
+function TabButton({ m, active, hasActivity, activeCls, lockedCls, idleCls, onTabClick }) {
+  const [hovered, setHovered] = useState(false);
+  const tc = m.color; // vibrant hex colour for this tab (null = studio default)
+
+  // Build inline styles — works on both #ffffff and #212121 backgrounds.
+  // Inactive: no background / no border.
+  // Active: a clear colour-tinted pill + ring. The label colour is the tab's
+  // vibrant hue by default (great on the dark theme); in LIGHT mode a CSS rule
+  // (`html:not(.dark) .navtab-active`, see globals.css) overrides it with
+  // `!important` to the neutral high-contrast text token, since vibrant hues
+  // read poorly on white. `!important` author rules beat non-important inline.
+  let inlineStyle = {};
+  if (active && tc) {
+    inlineStyle = {
+      background: tc + "26",                       // ~15% tint — a clear bright pill
+      boxShadow: `inset 0 0 0 1px ${tc}66`,        // ~40% ring
+      color: tc,                                    // vibrant label (dark mode); CSS neutralises in light
+    };
+  } else if (!active && !m.locked && hovered && tc) {
+    inlineStyle = { background: tc + "1f" };
+  }
+
+  // Multitask dot only on INACTIVE tabs that have work in progress.
+  const showDot = !active && hasActivity && tc;
+
+  return (
+    <button
+      role="tab"
+      aria-selected={active}
+      aria-label={m.text}
+      style={inlineStyle}
+      onMouseEnter={() => !m.locked && setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onTabClick}
+      className={`flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+        active
+          ? tc ? "navtab-active" : activeCls   // coloured tabs → vibrant inline + light-mode CSS override
+          : m.locked ? lockedCls
+          : idleCls
+      }`}
+    >
+      {/* Emoji icon — fixed anchor, never moves */}
+      <span className="navtab-emoji">
+        {m.emoji}
+        {showDot && <span className="navtab-dot" style={{ background: tc }} />}
+      </span>
+
+      {/* Label — clipped to width 0 when inactive, animates open when active */}
+      <span className="navtab-label" data-active={active ? "true" : "false"}>
+        {m.text}
+      </span>
+
+      {m.soon && active && <Lock size={9} className="ml-1 opacity-60" />}
+    </button>
+  );
+}
+
+// ── Main toggle ───────────────────────────────────────────────────────────────
 export default function WorkspaceModeToggle({ tone = "default", activeOverride = null }) {
   const pathname = usePathname();
   const router   = useRouter();
   const [comingSoon, setComingSoon] = useState(null);
 
-  // activeOverride lets secondary pages (History, Agents, Library) explicitly
-  // tell the toggle which product the user is currently viewing — instead of
-  // falling back to the default "studio" when the URL doesn't match a product.
+  // Track which tabs have persisted work in progress → multitask dots.
+  const [activity, setActivity] = useState({});
+  useEffect(() => {
+    const refresh = () =>
+      setActivity({
+        reels:   tabHasActivity(TAB_STATE_KEYS.reels),
+        podcast: tabHasActivity(TAB_STATE_KEYS.podcast),
+      });
+    refresh();
+    window.addEventListener("storage", refresh);
+    return () => window.removeEventListener("storage", refresh);
+  }, []);
+
   const activeId =
     activeOverride
     ?? (pathname?.startsWith("/dashboard/reels")    ? "reels"
+      : pathname?.startsWith("/dashboard/youtube") ? "youtube"
       : pathname?.startsWith("/dashboard/podcast") ? "podcast"
       : pathname?.startsWith("/dashboard/generate") ? "studio"
       : "studio");
@@ -52,28 +127,21 @@ export default function WorkspaceModeToggle({ tone = "default", activeOverride =
         aria-label="Workspace mode"
         className={`inline-flex items-center gap-0.5 rounded-xl border p-0.5 ${shell}`}
       >
-        {MODES.map((m) => {
-          const active = m.id === activeId;
-          const Icon   = m.icon;
-          return (
-            <button
-              key={m.id}
-              role="tab"
-              aria-selected={active}
-              onClick={() => {
-                if (m.soon)        setComingSoon(m.label);
-                else if (!m.locked) router.push(m.href);
-              }}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                active ? activeCls : m.locked ? lockedCls : idleCls
-              }`}
-            >
-              <Icon size={13} />
-              {m.label}
-              {m.soon && <Lock size={9} className="opacity-60" />}
-            </button>
-          );
-        })}
+        {MODES.map((m) => (
+          <TabButton
+            key={m.id}
+            m={m}
+            active={m.id === activeId}
+            hasActivity={m.id === "reels" ? activity.reels : m.id === "podcast" ? activity.podcast : false}
+            activeCls={activeCls}
+            lockedCls={lockedCls}
+            idleCls={idleCls}
+            onTabClick={() => {
+              if (m.soon)        setComingSoon(m.text);
+              else if (!m.locked) router.push(m.href);
+            }}
+          />
+        ))}
       </div>
 
       {/* Coming Soon modal */}
@@ -91,10 +159,10 @@ export default function WorkspaceModeToggle({ tone = "default", activeOverride =
               exit={{ opacity: 0, scale: 0.92 }}
               className="fixed left-1/2 top-1/2 z-[70] w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] p-8 text-center shadow-card"
             >
-              <div className="mb-4 text-5xl">{comingSoon === "YouTube" ? "▶️" : "🎙️"}</div>
-              <h2 className="mb-2 font-display text-xl font-bold">{comingSoon} Agent</h2>
+              <div className="mb-4 text-5xl">{comingSoon.includes("Long Content") ? "▶️" : "🎙️"}</div>
+              <h2 className="mb-2 font-display text-xl font-bold">{comingSoon}</h2>
               <p className="mb-6 text-sm text-faint">
-                The {comingSoon} Agent is in development. Join the waitlist and we'll notify you when it's ready.
+                The {comingSoon} pipeline is in development. Join the waitlist and we'll notify you when it's ready.
               </p>
               <button className="mb-3 w-full rounded-xl bg-cyan py-2.5 text-sm font-bold text-navy-950 transition hover:brightness-110">
                 Join Waitlist

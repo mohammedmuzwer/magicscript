@@ -3,6 +3,7 @@ import { generateMockStage4Research } from "@/lib/podcast/mockData";
 import { callGemini, GEMINI_MODELS } from "@/lib/podcast/gemini";
 import { callClaude } from "@/lib/podcast/claude";
 import { resolveAnthropicKey, modeLabel } from "@/lib/podcast/key-resolver";
+import { getEvidenceReport, extractMedicalQuery } from "@/lib/pubmed";
 
 // ── Extend Vercel/Next timeout to 5 min — large research jobs need it ─────────
 export const maxDuration = 300;
@@ -204,7 +205,7 @@ Return valid JSON only matching this exact schema:
 
 // ── Prompt builders ──────────────────────────────────────────────────────────
 
-function buildChunkPrompt({ locked_topic, category, questions, chunkIndex, totalChunks, pre_verified_facts = [] }) {
+function buildChunkPrompt({ locked_topic, category, questions, chunkIndex, totalChunks, pre_verified_facts = [], pubmedArticles = [] }) {
   const qList = questions
     .map((q) => `- [${q.id ?? q.question_id ?? `q${chunkIndex}`}] type:${q.type ?? "general"} "${q.text ?? q.question_text ?? q}"`)
     .join("\n");
@@ -227,14 +228,30 @@ ${pre_verified_facts.map((f, i) => `${i + 1}. [${f.grade}] "${f.claimText}"
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
     : "";
 
+  // Real PubMed articles retrieved live from NCBI E-utilities
+  const pubmedBlock = pubmedArticles.length > 0
+    ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+LIVE PUBMED ARTICLES (retrieved in real-time from NCBI — use these as citation anchors)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${pubmedArticles.length} real PubMed articles found for this topic. Use these PMIDs and details when grading — they are real:
+${pubmedArticles.map((a, i) =>
+  `${i + 1}. PMID: ${a.pmid} | ${a.title} | ${a.journal} (${a.year ?? "n/a"}) | Types: ${(a.articleTypes ?? []).join(", ") || "Not specified"}`
+).join("\n")}
+
+When a question's claim is directly supported by one of the above articles, cite it with its real PMID.
+If no article above directly answers the question, grade using your medical knowledge hierarchy.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+    : "";
+
   return `RESEARCH CHUNK ${chunkIndex + 1} of ${totalChunks}
 Topic: ${locked_topic ?? "Health Topic"}
 Category: ${category ?? "General"}
-${preVerifiedBlock}
+${preVerifiedBlock}${pubmedBlock}
 QUESTIONS TO GRADE (${questions.length}):
 ${qList}
 
-Grade each question above using the Hierarchy of Evidence. Check PRE-VERIFIED FACTS first.
+Grade each question above using the Hierarchy of Evidence. Check PRE-VERIFIED FACTS and LIVE PUBMED ARTICLES first.
 Return ONLY valid JSON: { "claims": [...] }
 No markdown. No explanation. No text before or after the JSON.`;
 }
@@ -294,11 +311,30 @@ export async function POST(req) {
   const geminiKey    = req.headers.get("x-client-gemini-key");
   const anthropicKey = resolveAnthropicKey(req);
 
+  // ── Fetch real PubMed articles for this topic (always, regardless of mode) ─
+  // Clean the topic title into a proper medical query before searching.
+  const pubmedQuery  = extractMedicalQuery(locked_topic);
+  let pubmedArticles = [];
+  let pubmedEvidence = null;
+  try {
+    const report = await getEvidenceReport(pubmedQuery, { maxResults: 10, minYear: 2015 });
+    pubmedArticles = report.allArticles ?? report.topArticles ?? [];
+    pubmedEvidence = report.evidence;
+    console.log(`[stage4-research] PubMed: "${pubmedQuery}" → ${pubmedEvidence?.totalCount} papers, score=${pubmedEvidence?.score}`);
+  } catch (e) {
+    console.warn("[stage4-research] PubMed fetch failed (non-fatal):", e.message);
+  }
+
   // ── Demo mode (no keys) ──────────────────────────────────────────────────
   if (!geminiKey && !anthropicKey) {
     await new Promise((r) => setTimeout(r, 1400));
     const mock = generateMockStage4Research(stage3_data ?? { all_questions: questions });
-    return NextResponse.json({ ...mock, mode: "demo" });
+    return NextResponse.json({
+      ...mock,
+      mode: "demo",
+      pubmed_articles: pubmedArticles,
+      pubmed_evidence: pubmedEvidence,
+    });
   }
 
   const preferred = req.headers.get("x-preferred-model") ?? "gemini";
@@ -306,25 +342,28 @@ export async function POST(req) {
   try {
     // ── CHUNK mode ──────────────────────────────────────────────────────────
     if (mode === "chunk") {
-      const promptText = buildChunkPrompt({ locked_topic, category, questions, chunkIndex, totalChunks, pre_verified_facts });
+      const promptText = buildChunkPrompt({ locked_topic, category, questions, chunkIndex, totalChunks, pre_verified_facts, pubmedArticles });
+
+      // Attach pubmed data to every chunk response
+      const pubmedMeta = { pubmed_articles: pubmedArticles, pubmed_evidence: pubmedEvidence };
 
       if (preferred === "claude") {
         if (anthropicKey) {
           const parsed = await callClaude(anthropicKey, CHUNK_SYSTEM, promptText, true, 4096);
-          return NextResponse.json({ claims: parsed.claims ?? [], mode: modeLabel(req) });
+          return NextResponse.json({ claims: parsed.claims ?? [], mode: modeLabel(req), ...pubmedMeta });
         }
         if (geminiKey) {
           const parsed = await callGemini(geminiKey, GEMINI_MODELS.flash, CHUNK_SYSTEM, promptText, 0.3, 8192, 0);
-          return NextResponse.json({ claims: parsed.claims ?? [], mode: "gemini" });
+          return NextResponse.json({ claims: parsed.claims ?? [], mode: "gemini", ...pubmedMeta });
         }
       } else {
         if (geminiKey) {
           const parsed = await callGemini(geminiKey, GEMINI_MODELS.flash, CHUNK_SYSTEM, promptText, 0.3, 8192, 0);
-          return NextResponse.json({ claims: parsed.claims ?? [], mode: "gemini" });
+          return NextResponse.json({ claims: parsed.claims ?? [], mode: "gemini", ...pubmedMeta });
         }
         if (anthropicKey) {
           const parsed = await callClaude(anthropicKey, CHUNK_SYSTEM, promptText, true, 4096);
-          return NextResponse.json({ claims: parsed.claims ?? [], mode: modeLabel(req) });
+          return NextResponse.json({ claims: parsed.claims ?? [], mode: modeLabel(req), ...pubmedMeta });
         }
       }
     }
@@ -332,24 +371,25 @@ export async function POST(req) {
     // ── SUMMARY mode ────────────────────────────────────────────────────────
     if (mode === "summary") {
       const promptText = buildSummaryPrompt({ locked_topic, claims });
+      const pubmedMeta = { pubmed_articles: pubmedArticles, pubmed_evidence: pubmedEvidence };
 
       if (preferred === "claude") {
         if (anthropicKey) {
           const parsed = await callClaude(anthropicKey, SUMMARY_SYSTEM, promptText, true, 4096);
-          return NextResponse.json({ ...parsed, mode: modeLabel(req) });
+          return NextResponse.json({ ...parsed, mode: modeLabel(req), ...pubmedMeta });
         }
         if (geminiKey) {
           const parsed = await callGemini(geminiKey, GEMINI_MODELS.flash, SUMMARY_SYSTEM, promptText, 0.3, 4096, 0);
-          return NextResponse.json({ ...parsed, mode: "gemini" });
+          return NextResponse.json({ ...parsed, mode: "gemini", ...pubmedMeta });
         }
       } else {
         if (geminiKey) {
           const parsed = await callGemini(geminiKey, GEMINI_MODELS.flash, SUMMARY_SYSTEM, promptText, 0.3, 4096, 0);
-          return NextResponse.json({ ...parsed, mode: "gemini" });
+          return NextResponse.json({ ...parsed, mode: "gemini", ...pubmedMeta });
         }
         if (anthropicKey) {
           const parsed = await callClaude(anthropicKey, SUMMARY_SYSTEM, promptText, true, 4096);
-          return NextResponse.json({ ...parsed, mode: modeLabel(req) });
+          return NextResponse.json({ ...parsed, mode: modeLabel(req), ...pubmedMeta });
         }
       }
     }
@@ -357,33 +397,34 @@ export async function POST(req) {
     // ── FULL / legacy mode ──────────────────────────────────────────────────
     const allQuestions = stage3_data?.all_questions ?? questions;
     const promptText   = buildFullPrompt({ locked_topic, category, questions: allQuestions, signals });
+    const pubmedMeta   = { pubmed_articles: pubmedArticles, pubmed_evidence: pubmedEvidence };
 
     if (preferred === "claude") {
       if (anthropicKey) {
         const parsed = await callClaude(anthropicKey, FULL_SYSTEM, promptText, true, 8192);
-        return NextResponse.json({ ...parsed, mode: modeLabel(req) });
+        return NextResponse.json({ ...parsed, mode: modeLabel(req), ...pubmedMeta });
       }
       if (geminiKey) {
         const parsed = await callGemini(geminiKey, GEMINI_MODELS.flash, FULL_SYSTEM, promptText, 0.4, 8192, 0);
-        return NextResponse.json({ ...parsed, mode: "gemini" });
+        return NextResponse.json({ ...parsed, mode: "gemini", ...pubmedMeta });
       }
     } else {
       if (geminiKey) {
         const parsed = await callGemini(geminiKey, GEMINI_MODELS.flash, FULL_SYSTEM, promptText, 0.4, 8192, 0);
-        return NextResponse.json({ ...parsed, mode: "gemini" });
+        return NextResponse.json({ ...parsed, mode: "gemini", ...pubmedMeta });
       }
       if (anthropicKey) {
         const parsed = await callClaude(anthropicKey, FULL_SYSTEM, promptText, true, 8192);
-        return NextResponse.json({ ...parsed, mode: modeLabel(req) });
+        return NextResponse.json({ ...parsed, mode: modeLabel(req), ...pubmedMeta });
       }
     }
 
   } catch (e) {
     console.error("[stage4-research] error:", e.message);
-    return NextResponse.json({ error: e.message, mode: "error" }, { status: 500 });
+    return NextResponse.json({ error: e.message, mode: "error", pubmed_articles: pubmedArticles, pubmed_evidence: pubmedEvidence }, { status: 500 });
   }
 
   // ── True fallback ────────────────────────────────────────────────────────
   const mock = generateMockStage4Research(stage3_data ?? { all_questions: questions });
-  return NextResponse.json({ ...mock, mode: "demo" });
+  return NextResponse.json({ ...mock, mode: "demo", pubmed_articles: pubmedArticles, pubmed_evidence: pubmedEvidence });
 }

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ShieldCheck, ShieldAlert, Loader2, ChevronRight,
   ChevronDown, ChevronUp, CheckCircle2, AlertTriangle,
-  BookOpen, FlaskConical, Globe, Edit3, AlertCircle,
+  BookOpen, FlaskConical, Globe, Edit3, AlertCircle, ExternalLink,
 } from "lucide-react";
 import ModelToggle from "@/components/podcast/ModelToggle";
 import { getModelPref } from "@/lib/podcast/model-preference";
@@ -280,7 +280,9 @@ export default function Stage4({ data, onComplete, demoMode }) {
       }
       const totalSteps = chunks.length + 1; // chunks + 1 summary call
 
-      const allClaims = [];
+      const allClaims       = [];
+      let   pubmedArticles  = [];
+      let   pubmedEvidence  = null;
 
       for (let i = 0; i < chunks.length; i++) {
         const start = i * CHUNK_SIZE + 1;
@@ -310,6 +312,11 @@ export default function Stage4({ data, onComplete, demoMode }) {
         const d = await res.json();
         if (d.mode === "error" || d.error) throw new Error(d.error ?? "API error on batch " + (i + 1));
         allClaims.push(...(d.claims ?? []));
+        // Capture PubMed data from first chunk (same for all chunks — fetched once server-side)
+        if (i === 0 && d.pubmed_articles?.length) {
+          pubmedArticles = d.pubmed_articles;
+          pubmedEvidence = d.pubmed_evidence ?? null;
+        }
       }
 
       // ── Summary: myth ledger + indian context + critic pass + dashboard ───
@@ -335,6 +342,8 @@ export default function Stage4({ data, onComplete, demoMode }) {
         critic_pass:          summary.critic_pass          ?? { status: "passed", flags: [] },
         confidence_dashboard: summary.confidence_dashboard ?? buildDashboard(allClaims),
         mode:                 summary.mode,
+        pubmed_articles:      pubmedArticles,
+        pubmed_evidence:      pubmedEvidence,
       };
 
       // ── Save new GREEN/YELLOW claims to Fact Library for future episodes ─
@@ -509,6 +518,52 @@ export default function Stage4({ data, onComplete, demoMode }) {
                     </span>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* ── Live PubMed Articles Panel ────────────────────────────── */}
+            {research.pubmed_articles?.length > 0 && (
+              <div className="rounded-xl border border-cyan-500/25 bg-cyan-500/5 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <BookOpen size={14} className="text-cyan-400 shrink-0" />
+                  <div className="flex-1">
+                    <span className="text-xs font-bold text-cyan-300">Live PubMed Evidence</span>
+                    <span className="ml-2 text-[10px] text-cyan-400/70">
+                      {research.pubmed_evidence
+                        ? `${research.pubmed_evidence.totalCount} papers found · ${research.pubmed_evidence.label}`
+                        : `${research.pubmed_articles.length} real articles retrieved`}
+                    </span>
+                  </div>
+                  <span className="rounded-full bg-cyan-500/15 px-2 py-0.5 text-[10px] font-bold text-cyan-300">
+                    NCBI · PubMed
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {research.pubmed_articles.slice(0, 5).map((a) => (
+                    <a
+                      key={a.pmid}
+                      href={a.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-start gap-2.5 rounded-lg border border-cyan-500/15 bg-[rgb(var(--panel))] px-3 py-2 text-[10px] hover:border-cyan-400/40 transition-colors group"
+                    >
+                      <ExternalLink size={9} className="mt-0.5 shrink-0 text-faint group-hover:text-cyan-400 transition-colors" />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-soft leading-tight line-clamp-2 group-hover:text-cyan-300 transition-colors">
+                          {a.title}
+                        </p>
+                        <p className="mt-0.5 text-faint">
+                          {a.journal}{a.year ? ` · ${a.year}` : ""}
+                          {a.articleTypes?.length ? ` · ${a.articleTypes.slice(0,2).join(", ")}` : ""}
+                          {a.pmid ? ` · PMID ${a.pmid}` : ""}
+                        </p>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+                <p className="text-[10px] text-faint/60">
+                  These real citations were injected into the AI prompt to ground claim grading in verified NCBI data.
+                </p>
               </div>
             )}
 

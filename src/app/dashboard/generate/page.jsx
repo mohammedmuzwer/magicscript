@@ -32,6 +32,7 @@ import StorybuilderWizard from "@/components/generation/storybuilder-wizard";
 import { VerdictBadge } from "@/components/ui/badges";
 import { DangerBanner } from "@/components/generation/safety-banner";
 import WorkspaceModeToggle from "@/components/ui/workspace-mode-toggle";
+import NavActions from "@/components/ui/nav-actions";
 
 // ── Mock videos for Viral Intelligence panel ──────────────────────────────
 const MOCK_VIDEOS = [
@@ -3067,14 +3068,6 @@ function RightPanel({ research, status, topic, audienceAgents, processAgents, co
 
 // ── Top navigation bar ────────────────────────────────────────────────────
 function StudioTopNav({ activeAgents, user }) {
-  const { logout } = useAuth();
-  const router = useRouter();
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  const initials = user?.name
-    ? user.name.split(" ").map((w) => w[0]).slice(0, 2).join("")
-    : "?";
-
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] px-4">
       {/* Left: Logo + workspace mode toggle */}
@@ -3084,21 +3077,7 @@ function StudioTopNav({ activeAgents, user }) {
         <WorkspaceModeToggle />
       </div>
 
-      {/* Center: Nav links */}
-      <nav className="hidden items-center gap-0.5 md:flex">
-        {NAV_LINKS.map((l) => (
-          <Link
-            key={l.href}
-            href={l.href}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-soft transition hover:bg-electric/8 hover:text-[rgb(var(--text))]"
-          >
-            <l.icon size={13} />
-            {l.label}
-          </Link>
-        ))}
-      </nav>
-
-      {/* Right: agent badge + credits + user */}
+      {/* Right: agent badge + shared nav actions (credits chip · theme · avatar) */}
       <div className="flex items-center gap-2">
         {activeAgents > 0 && (
           <span className="hidden items-center gap-1.5 rounded-full border border-cyan/30 bg-cyan/10 px-2.5 py-1 text-xs font-semibold text-cyan sm:flex">
@@ -3106,68 +3085,7 @@ function StudioTopNav({ activeAgents, user }) {
             {activeAgents} agent{activeAgents !== 1 ? "s" : ""} active
           </span>
         )}
-        <Link
-          href="/dashboard/billing"
-          className="hidden items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel))] px-2.5 py-1.5 text-xs font-semibold sm:flex"
-        >
-          <Zap size={13} className="text-cyan" />
-          <span className="text-cyan">{user?.credits ?? 0}</span>
-          <span className="text-faint">credits</span>
-        </Link>
-
-        <ThemeToggle />
-
-        {/* User menu */}
-        <div className="relative">
-          <button
-            onClick={() => setMenuOpen((v) => !v)}
-            className="flex items-center gap-1.5 rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))] py-1 pl-1 pr-2"
-          >
-            <span
-              className="grid h-7 w-7 shrink-0 place-items-center rounded-lg font-display text-xs font-bold text-white"
-              style={{
-                background: user
-                  ? `linear-gradient(135deg, hsl(${user.avatarHue} 80% 55%), hsl(${user.avatarHue + 45} 70% 45%))`
-                  : "linear-gradient(135deg, #22d3ee, #5b8cff)",
-              }}
-            >
-              {initials}
-            </span>
-            <ChevronDown size={13} className="hidden text-faint sm:block" />
-          </button>
-
-          {menuOpen && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-              <div className="absolute right-0 z-20 mt-2 w-52 overflow-hidden rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))] p-1.5 shadow-card">
-                <div className="border-b border-[rgb(var(--border))] px-3 py-2.5">
-                  <div className="text-sm font-semibold">{user?.name}</div>
-                  <div className="truncate text-xs text-faint">{user?.email}</div>
-                </div>
-                <Link
-                  href="/dashboard/profile"
-                  onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-soft transition hover:bg-electric/8"
-                >
-                  <UserCircle size={15} /> Profile
-                </Link>
-                <Link
-                  href="/dashboard/billing"
-                  onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-soft transition hover:bg-electric/8"
-                >
-                  <CreditCard size={15} /> Subscription
-                </Link>
-                <button
-                  onClick={() => { logout(); router.push("/"); }}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-rose-300 transition hover:bg-rose-500/10"
-                >
-                  <LogOut size={15} /> Log out
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+        <NavActions />
       </div>
     </header>
   );
@@ -3491,7 +3409,7 @@ function GenerationStudio() {
     <div className="flex h-screen flex-col overflow-hidden bg-[rgb(var(--bg))]">
       <StudioTopNav activeAgents={activeAgents} user={user} />
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="tab-content-enter flex flex-1 overflow-hidden">
         {/* Left sidebar */}
         <LeftPipeline
           inputAgent={inputAgent}             setInputAgent={setInputAgent}

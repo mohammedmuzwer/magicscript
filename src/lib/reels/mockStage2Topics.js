@@ -31,9 +31,9 @@ const T = {
   myth: {
     false_myth: [
       {
-        sfx:         "is completely safe for diabetics — the blood sugar truth your doctor skipped",
-        desc:        "Debunks the dangerous belief that fasting is always safe for diabetics. High alarm + doctor authority makes this an immediate family-share reel.",
-        anchor:      "A", anchor_note: "Keyword appears directly in title",
+        sfx:         "after 9pm raises your morning fasting glucose — the cortisol window your doctor never explained",
+        desc:        "Debunks the belief that late-night eating only affects weight. Cortisol-glucose mechanism is counterintuitive and creates strong comment and save behaviour.",
+        anchor:      "B", anchor_note: "Late-night eating is a direct form of the keyword — physiological consequence stated in description",
         dr:[82,90], sr:[90,97], cgr:[74,84], fr:[92,98],
       },
       {
@@ -57,9 +57,9 @@ const T = {
         dr:[80,88], sr:[88,95], cgr:[78,86], fr:[90,96],
       },
       {
-        sfx:         "during Karthigai and Ekadasi actually improves your sugar numbers — here is why",
-        desc:        "Religious fasting intersection. Tamil Nadu WhatsApp groups forward this within minutes. Zero competition from non-doctor creators on this specific angle.",
-        anchor:      "C", anchor_note: "Cultural intersection — Karthigai/Ekadasi fasting is a direct South Indian form of the keyword",
+        sfx:         "protects your beta cells — the insulin preservation evidence mainstream medicine ignores",
+        desc:        "Validates the protective mechanism patients suspect but cannot confirm from their doctors. Zero competition from non-clinical creators on beta-cell preservation angle.",
+        anchor:      "B", anchor_note: "Beta-cell protection is a direct documented consequence — peer-reviewed evidence stated in description",
         dr:[76,84], sr:[92,98], cgr:[86,94], fr:[94,99],
       },
     ],
@@ -93,9 +93,9 @@ const T = {
       dr:[76,84], sr:[88,94], cgr:[80,88], fr:[90,96],
     },
     {
-      sfx:         "during Ramadan is harming more diabetics than it helps — safe protocol inside",
-      desc:        "PROBLEM: Unsupervised fasting during Ramadan causes glucose crashes. THE FIX: Dr. Raj's safe Ramadan protocol for diabetics. Extremely high WhatsApp share in Muslim South Indian audience.",
-      anchor:      "C", anchor_note: "Ramadan is a direct religious cultural form of the keyword — South Indian Muslim audience",
+      sfx:         "without breakfast is silently raising cortisol in South Indian diabetics — the 10am glucose spike nobody talks about",
+      desc:        "PROBLEM: Skipping breakfast triggers a cortisol-driven glucose spike unique to South Indian meal timing patterns. THE FIX: Optimal eating window calibrated for idli/dosa breakfast culture. High save rate.",
+      anchor:      "B", anchor_note: "Meal-timing is a direct form of the keyword — cortisol-glucose consequence stated explicitly",
       dr:[78,86], sr:[94,99], cgr:[84,92], fr:[94,99],
     },
   ],
@@ -115,9 +115,9 @@ const T = {
       dr:[88,94], sr:[92,97], cgr:[74,84], fr:[92,98],
     },
     {
-      sfx:         "— what happens to your body during Karthigai / Ekadasi / Navratri if you are diabetic?",
-      desc:        "Religious fasting and diabetes safety is searched every single festival season. No doctor has made a comprehensive Tamil Nadu-specific reel on this. Competition gap = near zero.",
-      anchor:      "C", anchor_note: "Karthigai/Ekadasi/Navratri are direct South Indian religious forms of the keyword",
+      sfx:         "— how does late-night South Indian eating undo 16 hours of fasting benefit?",
+      desc:        "Patients following IF but still eating dinner at 10pm are unknowingly breaking their fast window. South Indian dinner culture makes this unique — no generic creator addresses this specific gap.",
+      anchor:      "B", anchor_note: "Late-night eating is a direct form of the keyword — fasting window consequence stated explicitly",
       dr:[84,92], sr:[94,99], cgr:[88,96], fr:[96,100],
     },
     {
@@ -143,15 +143,15 @@ const T = {
       dr:[80,88], sr:[92,98], cgr:[76,86], fr:[88,94],
     },
     {
-      sfx:         "one lifestyle shift outperforms 3 medications — my 600 patient reversals prove it",
-      desc:        "Combines patient outcome data with lifestyle reversal claim. Only a doctor with patient data can say this. Highest DF Fit of any contrarian angle.",
-      anchor:      "B", anchor_note: "Lifestyle reversal is the primary mechanism by which therapeutic fasting creates outcome — connection explicit",
+      sfx:         "is more evidence-based than metformin for early Type 2 diabetes — the 2023 meta-analysis your doctor never read",
+      desc:        "Challenges the default medication-first approach with peer-reviewed data. Only a clinical doctor can cite this with authority. Generates high debate in diabetic communities.",
+      anchor:      "B", anchor_note: "Lifestyle intervention as alternative to metformin is a direct derivative claim — evidence stated in description",
       dr:[82,90], sr:[90,96], cgr:[74,84], fr:[92,98],
     },
     {
-      sfx:         "the way your yoga instructor told you to fast is wrong — here is the science",
-      desc:        "Targets the enormous overlap between yoga/wellness culture and fasting in South India. Doctor vs wellness instructor authority = high comment and share.",
-      anchor:      "A", anchor_note: "Keyword appears directly in title",
+      sfx:         "at 6am is the worst time for South Indian diabetics — the cortisol-glucose link the wellness industry hides",
+      desc:        "Challenges generic early-morning fasting advice with South Indian-specific cortisol data. Doctor authority vs wellness culture = maximum comment volume and algorithm push.",
+      anchor:      "A", anchor_note: "Keyword appears directly in title — timing is a core fasting parameter",
       dr:[76,84], sr:[90,96], cgr:[82,90], fr:[86,93],
     },
     {
@@ -177,9 +177,9 @@ const T = {
       dr:[80,88], sr:[82,90], cgr:[90,97], fr:[92,98],
     },
     {
-      sfx:         "— what I tell my 1,000+ Tamil Nadu patients who ask me this every single day",
-      desc:        "Patient community authority format. Only a doctor with a real clinical practice can speak from this position. MHS community recognition drives saves and comment engagement.",
-      anchor:      "A", anchor_note: "Keyword appears directly in title",
+      sfx:         "and the South Indian blood sugar response — how rice, filter coffee and late dinners change the clinical picture",
+      desc:        "South Indian dietary patterns create a metabolic response different from Western clinical studies. Only a doctor treating Tamil Nadu patients can speak to this with authority.",
+      anchor:      "B", anchor_note: "South Indian dietary keyword intersection is a direct cultural derivative — clinical mechanism stated explicitly",
       dr:[78,86], sr:[86,93], cgr:[88,95], fr:[94,100],
     },
     {
@@ -203,10 +203,30 @@ const T = {
   ],
 };
 
-export function generateMockStage2Topics(keyword) {
+// Demo-safe "why now" copy per category (Improvement 2). Clinical tone, English.
+const WHY_NOW = {
+  myth:       "Debunks a belief Tamil Nadu patients search every season — peak WhatsApp share potential in South Indian family groups. Published research supports the correction and no Tamil creator has covered this angle yet.",
+  problem:    "Addresses a silent issue with high Tamil Nadu diabetes/PCOS prevalence — strong save-and-forward behaviour in regional family groups. Clinical evidence backs the fix and the doctor-led angle is uncovered.",
+  faq:        "Answers a question South Indian diabetics type at 2am — high search demand and published guidance support a clear answer. No Tamil doctor has addressed this specific concern on reels.",
+  contrarian: "Challenges mainstream advice with clinical authority — drives debate and algorithmic reach in Tamil Nadu health communities. Backed by research most creators never cite.",
+  clinical:   "Uses India-specific clinical evidence no generic creator can match — zero competition for a doctor-led angle. High regional relevance for Tamil Nadu metabolic patients.",
+};
+
+const ALL_MOCK_CATEGORIES = ["myth", "problem", "faq", "contrarian", "clinical"];
+
+export function generateMockStage2Topics(keyword, selectedContentTypes = ["auto"]) {
   const kw = (keyword || "health").trim().toLowerCase();
 
-  function build(items) {
+  // Determine which categories to build
+  const requestedCats =
+    !selectedContentTypes ||
+    selectedContentTypes.includes("auto") ||
+    selectedContentTypes.length === 0
+      ? ALL_MOCK_CATEGORIES
+      : selectedContentTypes.filter(c => ALL_MOCK_CATEGORIES.includes(c));
+  const finalCats = requestedCats.length > 0 ? requestedCats : ALL_MOCK_CATEGORIES;
+
+  function build(items, cat) {
     return items.map((t) => {
       const d  = pick(t.dr[0],  t.dr[1]);
       const s  = pick(t.sr[0],  t.sr[1]);
@@ -222,18 +242,23 @@ export function generateMockStage2Topics(keyword) {
         competition_gap: cg,
         fit:             f,
         score:           dfScore(d, s, cg, f),
+        why_now:         t.why ?? WHY_NOW[cat] ?? WHY_NOW.clinical,
+        is_used_topic:   false,
       };
     });
   }
 
-  return {
-    myth: {
-      false_myth: build(T.myth.false_myth),
-      true_myth:  build(T.myth.true_myth),
-    },
-    problem:    build(T.problem),
-    faq:        build(T.faq),
-    contrarian: build(T.contrarian),
-    clinical:   build(T.clinical),
-  };
+  const result = {};
+  if (finalCats.includes("myth")) {
+    result.myth = {
+      false_myth: build(T.myth.false_myth, "myth"),
+      true_myth:  build(T.myth.true_myth,  "myth"),
+    };
+  }
+  for (const cat of ["problem", "faq", "contrarian", "clinical"]) {
+    if (finalCats.includes(cat)) {
+      result[cat] = build(T[cat], cat);
+    }
+  }
+  return result;
 }
