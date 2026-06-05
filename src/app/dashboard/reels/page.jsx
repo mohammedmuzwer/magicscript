@@ -26,7 +26,8 @@ import ReelsLeftPanel     from "@/components/reels/ReelsLeftPanel";
 import TopicInsightPanel  from "@/components/reels/TopicInsightPanel";
 
 import { getContentTypeById } from "@/lib/reels/contentTypes";
-import { REELS_CREDITS, LOW_CREDIT_THRESHOLD } from "@/lib/reels/creditCosts";
+import { REELS_CREDITS, LOW_CREDIT_THRESHOLD, reelRunCost, reverifyCost } from "@/lib/reels/creditCosts";
+import { getReelsModelPref } from "@/lib/reels/stages";
 import { TAB_STATE_KEYS, saveTabState, loadTabState } from "@/lib/tabState";
 import { getCurrentTamilContext } from "@/lib/tamilContext";
 
@@ -67,8 +68,8 @@ function FactCheckCard() {
 }
 
 // ── Shared small card: Cost ───────────────────────────────────────────────────
-function CostCard({ count, credits }) {
-  const total = count * 8;
+function CostCard({ count, credits, model = "gemini" }) {
+  const total = reelRunCost(count, model);
   return (
     <div className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))] p-4 space-y-2">
       <p className="text-[10px] font-bold uppercase tracking-widest text-faint flex items-center gap-1.5">
@@ -78,7 +79,7 @@ function CostCard({ count, credits }) {
         <span className="text-3xl font-black text-[rgb(var(--text))]">{total}</span>
         <span className="text-sm font-bold text-faint">cr</span>
       </div>
-      <p className="text-[11px] text-faint">{count} topic{count !== 1 ? "s" : ""} × 8 credits each</p>
+      <p className="text-[11px] text-faint">{count} reel{count !== 1 ? "s" : ""} · full Stage 1→5 run</p>
       <div className="h-px bg-[rgb(var(--border))]" />
       <p className="text-[10px] text-faint">{credits} credits remaining</p>
     </div>
@@ -239,6 +240,10 @@ export default function ReelsPage() {
   // When a live backend call falls back, we auto-switch the whole app into Demo
   // Mode. This holds the human-readable reason for the one-time notice banner.
   const [autoDemoReason, setAutoDemoReason] = useState(null);
+  // Currently selected model (for cost display — Claude/GPT cost more than Gemini).
+  const [selectedModel, setSelectedModel] = useState("gemini");
+  // Running total of credits spent on the CURRENT reel run (shown at Stage 5).
+  const [runSpend, setRunSpend] = useState(0);
 
   // ── Lightweight cross-tab persistence ────────────────────────────────────────
   // Restores where the user left off when returning to this tab. In-flight API
@@ -279,6 +284,14 @@ export default function ReelsPage() {
     }
   }, [currentStage, pipeStatus, finalReels.length]);
 
+  // Track the selected model so cost displays update live when it changes.
+  useEffect(() => {
+    setSelectedModel(demoMode ? "demo" : getReelsModelPref(4));
+    const handler = (e) => { if (!demoMode && e.detail?.model) setSelectedModel(e.detail.model); };
+    window.addEventListener("reelsModelPrefChange", handler);
+    return () => window.removeEventListener("reelsModelPrefChange", handler);
+  }, [demoMode]);
+
   // ── Restore persisted UI state on mount (runs once) ──────────────────────────
   useEffect(() => {
     const s = loadTabState(TAB_STATE_KEYS.reels);
@@ -303,6 +316,7 @@ export default function ReelsPage() {
       if (s.scripts        != null) setScripts(s.scripts);
       if (s.verifyResults  != null) setVerifyResults(s.verifyResults);
       if (s.finalDone      != null) setFinalDone(s.finalDone);
+      if (s.runSpend       != null) setRunSpend(s.runSpend);
       if (s.sessionId      != null) setSessionId(s.sessionId);
       // Sanitise transient "running" states — no API call is actually in flight.
       setPipeStatus(s.pipeStatus === "running" ? "idle" : (s.pipeStatus ?? "idle"));
@@ -321,13 +335,13 @@ export default function ReelsPage() {
       currentStage, scriptView, demoMode, inputMode, selectedBucket, customWord,
       manualTopic, referenceLink, keyword, topic, contentType, batchSize,
       selectedTopics, finalReels, reelProgress, medCheck, medBlocked, scripts,
-      verifyResults, verifyStatus, pipeStatus, activeStep, finalDone, sessionId,
+      verifyResults, verifyStatus, pipeStatus, activeStep, finalDone, runSpend, sessionId,
       busy: pipeStatus === "running" || verifyStatus === "running",
     });
   }, [restored, currentStage, scriptView, demoMode, inputMode, selectedBucket,
       customWord, manualTopic, referenceLink, keyword, topic, contentType, batchSize,
       selectedTopics, finalReels, reelProgress, medCheck, medBlocked, scripts,
-      verifyResults, verifyStatus, pipeStatus, activeStep, finalDone, sessionId]);
+      verifyResults, verifyStatus, pipeStatus, activeStep, finalDone, runSpend, sessionId]);
 
   const SESSIONS_KEY = "ms_reels_sessions";
   const saveSession = (patch) => {
@@ -346,6 +360,12 @@ export default function ReelsPage() {
     } catch {}
   };
 
+  // Creator history → passed to Stage 2 so it can flag already-made angles.
+  // Recomputed when entering a stage (cheap localStorage read).
+  // NOTE: must stay ABOVE the early returns below — hooks can't run conditionally.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const usedTopics = useMemo(() => getCreatorUsedTopics(), [currentStage]);
+
   if (!ready) return (
     <div className="flex h-screen w-full items-center justify-center bg-[rgb(var(--bg))]">
       <div className="flex flex-col items-center gap-3">
@@ -358,10 +378,6 @@ export default function ReelsPage() {
 
   const lowCredits = user.credits < LOW_CREDIT_THRESHOLD;
   const hasTopics  = batchSize === 1 ? !!topic : selectedTopics.length > 0;
-
-  // Creator history → passed to Stage 2 so it can flag already-made angles.
-  // Recomputed when entering a stage (cheap localStorage read).
-  const usedTopics = useMemo(() => getCreatorUsedTopics(), [currentStage]);
 
   // ── Sidebar progress ───────────────────────────────────────────────────────
   const visualApproved = [];
@@ -465,7 +481,7 @@ export default function ReelsPage() {
     setCurrentStage(3); setPreviewTopic(null);
     setMedCheck(null); setScripts(null); setFinalReels([]); setFinalDone(false);
     setAwaitingMed(false); setMedBlocked(false); setPipeStatus("idle");
-    setVerifyStatus("idle"); setVerifyResults([]); setStage2Pool(null);
+    setVerifyStatus("idle"); setVerifyResults([]); setStage2Pool(null); setRunSpend(0);
     saveSession({ stageReached: 2, stageLabel: "Topic Validation", status: "in_progress", selectedTopics: topics.map(t => t.title ?? t), batchSize: topics.length });
   };
 
@@ -478,7 +494,7 @@ export default function ReelsPage() {
     setBatchSize(1); setSelectedTopics([]); setFinalReels([]);
     setReelProgress({ current: 0, total: 0 }); setVerifyStatus("idle"); setVerifyResults([]);
     setStage2Pool(null); setSessionId(null); setCurrentStage(1); setDemoMode(false);
-    setStage2TopicsCache(null); setAutoDemoReason(null);
+    setStage2TopicsCache(null); setAutoDemoReason(null); setRunSpend(0);
   };
 
   const getHeaders = () => {
@@ -659,6 +675,21 @@ export default function ReelsPage() {
     saveSession({ stageReached: 3, stageLabel: "Medical Check", status: "in_progress", verifiedCount: fp, removedCount: fr, autoReplaced: ar, verifyResults: results.map(r => ({ title: r.title, evidenceScore: r.evidenceScore, passed: r.passed })) });
   };
 
+  // Spend credits AND accumulate into the current run's running total (Stage 5).
+  const chargeRun = (amount) => {
+    spendCredit(amount);
+    setRunSpend(prev => Math.round((prev + amount) * 10) / 10);
+  };
+
+  // Re-verify — re-runs medical verification and charges REVERIFY credits (model-scaled).
+  // The first verification (initial "Verify Medical Claims" button) is free,
+  // covered by the run cost charged at generation; re-running costs ~3 cr.
+  const handleReverify = () => {
+    chargeRun(reverifyCost(selectedModel));
+    setMedVerificationReports([]); setSelectedReportIdx(0);
+    handleVerify();
+  };
+
   const handleGenerate = async () => {
     const topicsToGenerate = verifyResults.length > 0 ? verifyResults.filter(r => r.passed) : (selectedTopics.length > 0 ? selectedTopics : [{ title: topic, tabId: "myth" }]);
     if (!topicsToGenerate.length) return;
@@ -687,7 +718,7 @@ export default function ReelsPage() {
       setMedCheck(DEMO_REELS[0].medCheck);
       setPipeStatus("done");
       setScriptProgress({ current: total, total, phase: "" });
-      spendCredit(REELS_CREDITS.FULL_REGEN * total);
+      chargeRun(reelRunCost(total, selectedModel));
       return;
     }
 
@@ -745,7 +776,7 @@ export default function ReelsPage() {
 
         setPipeStatus("done");
         setScriptProgress({ current: total, total, phase: "" });
-        spendCredit(REELS_CREDITS.FULL_REGEN * total);
+        chargeRun(reelRunCost(total, selectedModel));
         return; // ← success — skip the fallback below
       }
     } catch (e) {
@@ -790,7 +821,7 @@ export default function ReelsPage() {
 
     setPipeStatus("done");
     setScriptProgress({ current: total, total, phase: "" });
-    spendCredit(REELS_CREDITS.FULL_REGEN * total);
+    chargeRun(reelRunCost(total, selectedModel));
     try {
       const sessions = JSON.parse(localStorage.getItem("ms_reels_sessions") || "[]");
       const s = sessionId ? sessions.find(x => x.id === sessionId) : sessions[0];
@@ -915,19 +946,24 @@ export default function ReelsPage() {
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 2px", flexShrink: 0 }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
                           <span style={{ fontSize: 12, fontWeight: 600, color: "rgb(var(--text))" }}>Batch Size</span>
-                          <span style={{ fontSize: 11, color: "rgb(var(--text-faint))" }}>Reels to generate</span>
+                          <span style={{ fontSize: 11, color: "rgb(var(--text-faint))" }}>
+                            {batchSize} reel{batchSize !== 1 ? "s" : ""} · <span style={{ fontWeight: 700, color: "rgb(var(--accent))" }}>{reelRunCost(batchSize, selectedModel)} cr</span>
+                            {selectedModel !== "gemini" && selectedModel !== "demo" ? ` (${selectedModel} ×${selectedModel === "claude" ? "1.5" : "1.3"})` : ""}
+                          </span>
                         </div>
                         <div style={{ display: "flex", gap: 6 }}>
                           {[1, 3, 5, 10].map(n => (
                             <button key={n} type="button" onClick={() => setBatchSize(n)} style={{
-                              padding: "5px 14px", borderRadius: 6,
+                              display: "flex", flexDirection: "column", alignItems: "center", gap: 1,
+                              padding: "4px 12px", borderRadius: 6, lineHeight: 1.1,
                               fontSize: 13, fontWeight: batchSize === n ? 600 : 500,
                               cursor: "pointer", transition: "all 150ms ease",
                               background: batchSize === n ? "rgb(var(--accent))" : "rgb(var(--panel-soft))",
                               color: batchSize === n ? "#fff" : "rgb(var(--text-faint))",
                               border: batchSize === n ? "none" : "0.5px solid rgb(var(--border))",
                             }}>
-                              {n === 1 ? "×1" : `×${n}`}
+                              <span>{n === 1 ? "×1" : `×${n}`}</span>
+                              <span style={{ fontSize: 9, fontWeight: 600, opacity: 0.85 }}>{reelRunCost(n, selectedModel)}cr</span>
                             </button>
                           ))}
                         </div>
@@ -1181,8 +1217,8 @@ export default function ReelsPage() {
                     <div className="flex items-center justify-between gap-2">
                       <h1 className="font-display text-xl font-bold">Medical Check &amp; Generate</h1>
                       {verifyStatus === "done" && (
-                        <button onClick={handleVerify} className="flex items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel))] px-3 py-1.5 text-[11px] font-semibold text-faint transition hover:text-soft hover:border-[#2563eb]/30">
-                          🔄 Re-verify
+                        <button onClick={handleReverify} className="flex items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel))] px-3 py-1.5 text-[11px] font-semibold text-faint transition hover:text-soft hover:border-[#2563eb]/30">
+                          🔄 Re-verify ({REELS_CREDITS.REVERIFY}cr)
                         </button>
                       )}
                     </div>
@@ -1269,7 +1305,7 @@ export default function ReelsPage() {
                                 );
                               })}
                               <div className="flex items-center gap-2 pt-1">
-                                <span className="flex items-center gap-1.5 rounded-lg border border-[#2563eb]/20 bg-[#2563eb]/8 px-2.5 py-1.5 text-[11px] font-semibold text-[#2563eb]"><Zap size={11} />{(selectedTopics.length||1)*8} credits = {selectedTopics.length||1} × 8cr</span>
+                                <span className="flex items-center gap-1.5 rounded-lg border border-[#2563eb]/20 bg-[#2563eb]/8 px-2.5 py-1.5 text-[11px] font-semibold text-[#2563eb]"><Zap size={11} />{reelRunCost(selectedTopics.length||1, selectedModel)} cr · full run ({selectedTopics.length||1} reel{(selectedTopics.length||1)!==1?"s":""})</span>
                                 <span className="flex items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/8 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-400">🏥 PubMed verified</span>
                               </div>
                             </div>
@@ -1520,7 +1556,7 @@ export default function ReelsPage() {
 
                             {/* CTA row */}
                             <div className="flex gap-2 pt-1">
-                              <button onClick={() => { setVerifyStatus("idle"); setVerifyResults([]); setMedVerificationReports([]); }} className="rounded-xl border border-[rgb(var(--border))] px-3 py-2.5 text-xs font-semibold text-faint transition hover:border-[#2563eb]/30 hover:text-soft">↩ Re-verify</button>
+                              <button onClick={handleReverify} className="rounded-xl border border-[rgb(var(--border))] px-3 py-2.5 text-xs font-semibold text-faint transition hover:border-[#2563eb]/30 hover:text-soft">↩ Re-verify ({REELS_CREDITS.REVERIFY}cr)</button>
                               <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}
                                 onClick={handleGenerate}
                                 disabled={verifyStatus !== "done" || verifyResults.filter(r => r.passed).length === 0}
@@ -1589,7 +1625,7 @@ export default function ReelsPage() {
                         );
                       })()}
 
-                      <CostCard count={topicCount} credits={user.credits} />
+                      <CostCard count={topicCount} credits={user.credits} model={selectedModel} />
                       <FactCheckCard />
                     </div>
 
@@ -1706,8 +1742,9 @@ export default function ReelsPage() {
                                 className="flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold text-emerald-400 transition hover:bg-emerald-500/20">
                                 💾 Save All
                               </motion.button>
-                              <button onClick={handleReset} className="flex items-center gap-1 rounded-lg border border-[rgb(var(--border))] px-2.5 py-1 text-[10px] text-soft hover:text-[#2563eb] transition">
-                                <RotateCcw size={11} /> New Reel
+                              <button onClick={handleGenerate} title="Re-generate the script content for these same topics"
+                                className="flex items-center gap-1 rounded-lg border border-[rgb(var(--border))] px-2.5 py-1 text-[10px] text-soft hover:text-[#2563eb] transition">
+                                <RotateCcw size={11} /> Re-Generate ({reelRunCost(finalReels.length, selectedModel)}cr)
                               </button>
                             </div>
                           </div>
@@ -1829,10 +1866,36 @@ export default function ReelsPage() {
                         activeStep={activeStep}
                         awaitingMed={awaitingMed}
                         reelProgress={reelProgress}
+                        model={selectedModel}
                       />
 
+                      {/* Total spend for this run — shown at Final Output (Stage 5) */}
+                      {currentStage === 5 && pipeStatus === "done" && (
+                        <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4 space-y-2">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500/90 flex items-center gap-1.5">
+                            <Zap size={10} /> Total Spent — This Run
+                          </p>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-3xl font-black text-[rgb(var(--text))]">{runSpend}</span>
+                            <span className="text-sm font-bold text-faint">cr</span>
+                          </div>
+                          <p className="text-[11px] text-faint">
+                            {finalReels.length} reel{finalReels.length !== 1 ? "s" : ""} · model: <span className="font-semibold capitalize">{selectedModel}</span>
+                            {selectedModel !== "gemini" && selectedModel !== "demo" ? ` (×${selectedModel === "claude" ? "1.5" : "1.3"} vs Gemini)` : ""}
+                          </p>
+                          <div className="h-px bg-[rgb(var(--border))]" />
+                          <p className="text-[10px] text-faint">
+                            {demoMode ? "Demo — no real API charge" : `≈ ₹${runSpend} real cost`} · {user.credits} credits remaining
+                          </p>
+                        </div>
+                      )}
+
                       <ScriptQualityCard medCheck={medCheck} />
-                      <CostCard count={reelProgress.total || topicCount} credits={user.credits} />
+                      {/* Projected cost — only during generation (Stage 4). At Stage 5
+                          the "Total Spent — This Run" card above is the source of truth. */}
+                      {currentStage !== 5 && (
+                        <CostCard count={reelProgress.total || topicCount} credits={user.credits} model={selectedModel} />
+                      )}
                       <FactCheckCard />
                       <PerformanceCard />
                     </div>

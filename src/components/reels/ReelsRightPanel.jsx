@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Zap, ShieldCheck, FlaskConical } from "lucide-react";
 import TopicInsightPanel from "@/components/reels/TopicInsightPanel";
 import ReelsModelToggle  from "@/components/reels/ReelsModelToggle";
+import { reelRunCost }   from "@/lib/reels/creditCosts";
 
 // ── Stage 1: Batch size selector ──────────────────────────────────────────────
 function BatchSizePanel({ batchSize, setBatchSize }) {
@@ -82,7 +83,7 @@ function EvidenceScorePanel({ score, safety, sources = [] }) {
 
 // ── Stage 3: Cost breakdown ───────────────────────────────────────────────────
 function CostPanel({ count, creditsRemaining }) {
-  const total = count * 8;
+  const total = reelRunCost(count);
   return (
     <div className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))] p-4 space-y-2">
       <p className="text-[10px] font-bold uppercase tracking-widest text-faint flex items-center gap-1.5">
@@ -92,7 +93,7 @@ function CostPanel({ count, creditsRemaining }) {
         <span className="text-3xl font-black text-[rgb(var(--text))]">{total}</span>
         <span className="text-sm font-bold text-faint">cr</span>
       </div>
-      <p className="text-[11px] text-faint">{count} topic{count !== 1 ? "s" : ""} × 8 credits each</p>
+      <p className="text-[11px] text-faint">{count} reel{count !== 1 ? "s" : ""} · full Stage 1→5 run</p>
       <div className="h-px bg-[rgb(var(--border))]" />
       <p className="text-[10px] text-faint">{creditsRemaining} credits remaining</p>
     </div>

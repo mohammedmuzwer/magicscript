@@ -86,7 +86,6 @@ export default function ScriptCard({
       <div className={`px-4 py-3 ${meta.accentBg} border-b border-[rgb(var(--border))]`}>
         <div className="flex items-center justify-between">
           <span className={`text-sm font-bold ${meta.headerColor}`}>{meta.badge}</span>
-          <span className="rounded-md bg-[rgb(var(--bg-soft))] px-1.5 py-0.5 text-[10px] font-bold text-faint">8cr</span>
         </div>
         <p className={`mt-0.5 text-[11px] ${meta.subtextColor}`}>
           Tone: {meta.tone} · Format: {meta.format}

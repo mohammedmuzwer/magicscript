@@ -17,6 +17,17 @@ import {
   YT_STAGES, YT_BRAND, CONTENT_STYLES, styleLabel, HOOK_TYPES, VIDEO_CHAPTERS,
   YT_GEN_PIPELINE, YT_CREDITS_PER_SCRIPT, RETENTION_COLOR,
 } from "@/lib/youtube/stages";
+import { videoRunCost, reverifyCost, YT_CREDITS } from "@/lib/youtube/creditCosts";
+import { getReelsModelPref } from "@/lib/reels/stages";
+import { ExternalLink, ArrowRight } from "lucide-react";
+
+// Medical claims verified in Stage 5 (in live mode these come from the outline).
+// `query` is a PubMed-friendly search phrase; `claim` is the on-screen sentence.
+const CLAIMS = [
+  { ch: "CHAPTER 2",  claim: "16h fasting lowers fasting glucose by ~22 points", query: "intermittent fasting fasting glucose type 2 diabetes" },
+  { ch: "CHAPTER 3",  claim: "Cells become 44% more insulin-sensitive in 72h",   query: "time restricted eating insulin sensitivity" },
+  { ch: "CASE STUDY", claim: "Ramadan fasting safe for most type-2 diabetics",   query: "Ramadan fasting type 2 diabetes safety" },
+];
 
 // ── Demo data ─────────────────────────────────────────────────────────────────
 const DEMO_TOPIC = {
@@ -127,7 +138,7 @@ function StageHeader({ id, title, subtitle }) {
 
 // ════════════════════════════════════════════════════════════════════════════
 export default function YoutubePage() {
-  const { user, ready } = useAuth();
+  const { user, ready, spendCredit } = useAuth();
   const router = useRouter();
 
   useEffect(() => { if (ready && !user) router.replace("/login"); }, [ready, user, router]);
@@ -135,6 +146,18 @@ export default function YoutubePage() {
   const [currentStage, setCurrentStage]   = useState(1);
   const [approvedStages, setApprovedStages] = useState([]);
   const [demoMode, setDemoMode]            = useState(false);
+
+  // ── Credits / model / run-spend ──────────────────────────────────────────
+  const [selectedModel, setSelectedModel] = useState("gemini");
+  const [runSpend, setRunSpend]           = useState(0);
+  const [autoDemoReason, setAutoDemoReason] = useState(null);
+
+  // ── Stage 5 medical verification state ───────────────────────────────────
+  const [verifyStatus, setVerifyStatus]   = useState("idle"); // idle | running | done
+  const [verifyResults, setVerifyResults] = useState([]);
+  const [medReports, setMedReports]       = useState([]);     // medVerificationReport[]
+  const [reportIdx, setReportIdx]         = useState(0);
+  const [verifyLoadStep, setVerifyLoadStep] = useState(0);
 
   // Stage 1
   const [inputMode, setInputMode]       = useState("bucket");
@@ -153,6 +176,21 @@ export default function YoutubePage() {
   const scrollRef = useRef(null);
   useEffect(() => { scrollRef.current?.scrollTo({ top: 0 }); }, [currentStage]);
 
+  // Initialise the model from any stored Micro-Content preference once on mount.
+  useEffect(() => { setSelectedModel(getReelsModelPref(6)); }, []);
+
+  // Effective model for COST/DISPLAY — demo mode is priced like Gemina (1×).
+  // (getHeaders still sends the real selectedModel to the API.)
+  const effModel = demoMode ? "demo" : selectedModel;
+
+  // Animate the verification loading steps while Stage 5 runs.
+  useEffect(() => {
+    if (verifyStatus !== "running") { setVerifyLoadStep(0); return; }
+    if (verifyLoadStep >= 5) return;
+    const t = setTimeout(() => setVerifyLoadStep(s => Math.min(s + 1, 5)), 750);
+    return () => clearTimeout(t);
+  }, [verifyStatus, verifyLoadStep]);
+
   const approve = (id) => setApprovedStages((p) => (p.includes(id) ? p : [...p, id]));
   const goToStage = (id) => setCurrentStage(id);
   const advance = (id) => { approve(id); setCurrentStage(Math.min(7, id + 1)); };
@@ -165,6 +203,8 @@ export default function YoutubePage() {
     setTopic(null); setSelectedHook("shock");
     setExpandedChapter(0); setOpenSection("script"); setShoot("to_shoot");
     setCurrentStage(1);
+    setRunSpend(0); setAutoDemoReason(null);
+    setVerifyStatus("idle"); setVerifyResults([]); setMedReports([]); setReportIdx(0);
   }
 
   function toggleDemo() {
@@ -174,11 +214,84 @@ export default function YoutubePage() {
       setContentStyle("education"); setTopic(DEMO_TOPIC);
       setApprovedStages([1]); setCurrentStage(2);
     } else {
-      setDemoMode(false);
+      setDemoMode(false); setAutoDemoReason(null);
       setSelectedBucket(null); setKeyword(""); setContentStyle("auto");
       setTopic(null); setApprovedStages([]); setCurrentStage(1); setBatchSize(1);
+      setRunSpend(0); setVerifyStatus("idle"); setVerifyResults([]); setMedReports([]);
     }
   }
+
+  // ── Credits / model / fallback helpers ────────────────────────────────────
+  const chargeRun = (amount) => {
+    spendCredit(amount);
+    setRunSpend(prev => Math.round((prev + amount) * 10) / 10);
+  };
+
+  // Auto-switch to Demo Mode when a live backend call falls back (no key / quota / timeout).
+  const maybeAutoEnableDemo = (mode, reason) => {
+    if ((mode === "demo" || mode === "fallback") && !demoMode) {
+      setDemoMode(true);
+      setAutoDemoReason(reason || "Live generation unavailable — switched to Demo Mode");
+    }
+  };
+
+  const getHeaders = () => {
+    if (typeof window === "undefined") return { "Content-Type": "application/json" };
+    const gk = localStorage.getItem("V_KEY_GOOGLE") || localStorage.getItem("ms_gemini_key");
+    const ak = localStorage.getItem("V_KEY_CLAUDE") || localStorage.getItem("ms_anthropic_key");
+    const ok = localStorage.getItem("ms_openai_key");
+    return { "Content-Type": "application/json",
+      ...(gk && { "x-client-gemini-key": gk }), ...(ak && { "x-client-anthropic-key": ak }),
+      ...(ok && { "x-client-openai-key": ok }), "x-preferred-model": selectedModel };
+  };
+
+  // ── Stage 5 — real medical verification (reuses reels stage3-medcheck) ─────
+  const runVerify = async () => {
+    setVerifyStatus("running"); setVerifyResults([]); setMedReports([]); setReportIdx(0); setVerifyLoadStep(0);
+
+    // Map the outline's medical claims to topics the medcheck route understands.
+    // Send the PubMed-friendly query as the title so live search actually matches.
+    const topics = CLAIMS.map(c => ({ title: c.query, tabId: "clinical", _chapter: c.ch }));
+
+    try {
+      const ctrl = new AbortController();
+      const timeoutId = setTimeout(() => ctrl.abort(), 45000); // 45s hard cap
+      let res;
+      try {
+        res = await fetch("/api/reels/stage3-medcheck", {
+          method: "POST", headers: getHeaders(), signal: ctrl.signal,
+          body: JSON.stringify({ topics, bufferPool: [], batchSize: topics.length, keyword: keyword || (topic?.title ?? "") }),
+        });
+      } finally { clearTimeout(timeoutId); }
+
+      if (res?.ok) {
+        const data = await res.json();
+        maybeAutoEnableDemo(data.mode, data.error ? `Med check: ${data.error}` : "Medical verification fell back to sample data");
+        const results = (data.verifiedTopics ?? []).map((t, i) => ({
+          chapter:       CLAIMS[i]?.ch ?? t._chapter ?? "CLAIM",
+          claim:         CLAIMS[i]?.claim ?? t.title, // show the readable sentence, not the query
+          evidenceScore: t.evidenceScore ?? 0,
+          evidenceGrade: t.evidenceGrade ?? "B",
+          passed:        t.passed ?? (t.status === "passed" || t.status === "weak"),
+          studyCount:    t.studyCount ?? 0,
+          medVerificationReport: t.medVerificationReport ?? null,
+        }));
+        setVerifyResults(results);
+        setMedReports(results.map(r => r.medVerificationReport).filter(Boolean));
+        setVerifyStatus("done");
+        return;
+      }
+      throw new Error("medcheck request failed");
+    } catch (e) {
+      // Network/timeout failure → switch to demo and surface mock reports.
+      maybeAutoEnableDemo("demo", "Live medical verification failed — network or model error");
+      setVerifyResults(CLAIMS.map(c => ({ chapter: c.ch, claim: c.claim, evidenceScore: 0, passed: true, medVerificationReport: null })));
+      setVerifyStatus("done");
+    }
+  };
+
+  const handleVerify = () => { runVerify(); };               // first verify — free (part of run cost)
+  const handleReverify = () => { chargeRun(reverifyCost(effModel)); runVerify(); }; // re-run — charged
 
   if (!ready) return (
     <div className="flex h-screen items-center justify-center bg-[rgb(var(--bg))]">
@@ -192,11 +305,14 @@ export default function YoutubePage() {
 
   // ── Bottom-bar CTA per stage ───────────────────────────────────────────────
   const ctas = {
-    1: { label: "Analyse Topics →", color: "#2563eb", disabled: !canAnalyse, onClick: () => { if (!topic) setTopic(DEMO_TOPIC); advance(1); } },
+    1: { label: "Analyse Topics →", color: "#2563eb", disabled: !canAnalyse, onClick: () => { if (!topic) setTopic(DEMO_TOPIC); setRunSpend(0); advance(1); } },
     2: { label: "Lock Topic →",     color: "#16a34a", onClick: () => advance(2) },
     3: { label: "Build Structure →",color: "#16a34a", onClick: () => advance(3) },
     4: { label: "Run Med Check →",  color: "#16a34a", onClick: () => advance(4) },
-    5: { label: "Generate Script →",color: "#16a34a", onClick: () => advance(5) },
+    // Gated: must finish verification first. Charges the full run cost on generate.
+    5: { label: verifyStatus === "done" ? "Generate Script →" : "Verify medical claims first", color: "#16a34a",
+         disabled: verifyStatus !== "done",
+         onClick: () => { chargeRun(videoRunCost(batchSize, effModel)); advance(5); } },
     6: { label: "Go to Final Output →", color: "#2563eb", onClick: () => advance(6) },
     7: { label: "Export Full Pack →",   color: "#2563eb", onClick: () => approve(7) },
   };
@@ -207,7 +323,7 @@ export default function YoutubePage() {
     2: "💡 Doctor's Pick blends Doctor Farmer score with YouTube signals — lock the highest combined opportunity",
     3: "💡 Find the gap competitors miss — your winning angle is auto-generated from what's missing",
     4: "💡 Keep the retention curve above 45% — add pattern interrupts at drop-off zones",
-    5: "💡 PubMed verifies every medical claim before scripting — 12 credits for a longer YouTube script",
+    5: "💡 PubMed verifies every medical claim before scripting — the first check is included; re-verifying costs extra",
     6: "💡 Tap any chapter to expand — B-roll, on-screen text and pattern interrupts are built in",
     7: "💡 Your full pack: script, timestamps, SEO description, tags and a thumbnail brief — ready to upload",
   };
@@ -236,20 +352,40 @@ export default function YoutubePage() {
           onGoToStage={goToStage}
           demoMode={demoMode}
           onToggleDemoMode={toggleDemo}
+          model={selectedModel}
+          onModelChange={setSelectedModel}
         />
 
         <main className="tab-content-enter flex flex-1 flex-col overflow-hidden">
+          {/* Auto Demo-Mode notice — a live call fell back, app switched to demo */}
+          {autoDemoReason && demoMode && (
+            <div className="mx-5 mt-3 flex items-start gap-2.5 rounded-lg border border-amber-400/40 bg-amber-50 px-3.5 py-2.5 dark:bg-amber-500/10">
+              <span className="mt-0.5 text-base leading-none">🟡</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[12px] font-bold text-amber-700 dark:text-amber-300">Switched to Demo Mode automatically</p>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-amber-700/90 dark:text-amber-200/80">
+                  {autoDemoReason}. Medical checks and scripts shown are non-verified samples. Switch the model
+                  (Claude / ChatGPT) or fix the API key, then turn <span className="font-semibold">Live API</span> back on.
+                </p>
+              </div>
+              <button onClick={() => setAutoDemoReason(null)} className="shrink-0 px-1.5 text-[11px] font-bold text-amber-700/70 hover:text-amber-700 dark:text-amber-300/70">✕</button>
+            </div>
+          )}
           {(currentStage === 2 || currentStage === 6)
             ? <div ref={scrollRef} className="flex-1 overflow-hidden p-5 pb-[80px]" style={{ height: FREEZE_H }}>
                 {currentStage === 2 && <Stage2 topic={topic || DEMO_TOPIC} />}
                 {currentStage === 6 && <Stage6 topic={topic || DEMO_TOPIC} expanded={expandedChapter} setExpanded={setExpandedChapter} />}
               </div>
             : <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 pb-[80px]">
-                {currentStage === 1 && <Stage1 {...{ inputMode, setInputMode, selectedBucket, setSelectedBucket, keyword, setKeyword, contentStyle, setContentStyle, batchSize, setBatchSize }} />}
+                {currentStage === 1 && <Stage1 {...{ inputMode, setInputMode, selectedBucket, setSelectedBucket, keyword, setKeyword, contentStyle, setContentStyle, batchSize, setBatchSize, model: effModel }} />}
                 {currentStage === 3 && <Stage3 selectedHook={selectedHook} setSelectedHook={setSelectedHook} />}
                 {currentStage === 4 && <Stage4 />}
-                {currentStage === 5 && <Stage5 topic={topic || DEMO_TOPIC} credits={user.credits} />}
-                {currentStage === 7 && <Stage7 topic={topic || DEMO_TOPIC} shoot={shoot} setShoot={setShoot} openSection={openSection} setOpenSection={setOpenSection} />}
+                {currentStage === 5 && <Stage5 topic={topic || DEMO_TOPIC} credits={user.credits}
+                  med={{ status: verifyStatus, results: verifyResults, reports: medReports, reportIdx, setReportIdx,
+                         onVerify: handleVerify, onReverify: handleReverify, loadStep: verifyLoadStep,
+                         model: effModel, demoMode, reverifyCr: reverifyCost(effModel), runCost: videoRunCost(batchSize, effModel) }} />}
+                {currentStage === 7 && <Stage7 topic={topic || DEMO_TOPIC} shoot={shoot} setShoot={setShoot} openSection={openSection} setOpenSection={setOpenSection}
+                  runSpend={runSpend} model={effModel} demoMode={demoMode} credits={user.credits} />}
               </div>}
         </main>
       </div>
@@ -279,7 +415,7 @@ export default function YoutubePage() {
 // ════════════════════════════════════════════════════════════════════════════
 // STAGE 1 — Topic Discovery
 // ════════════════════════════════════════════════════════════════════════════
-function Stage1({ inputMode, setInputMode, selectedBucket, setSelectedBucket, keyword, setKeyword, contentStyle, setContentStyle, batchSize, setBatchSize }) {
+function Stage1({ inputMode, setInputMode, selectedBucket, setSelectedBucket, keyword, setKeyword, contentStyle, setContentStyle, batchSize, setBatchSize, model = "gemini" }) {
   const INPUT_MODES = [
     { id: "bucket", icon: "🧭", label: "Content Bucket", desc: "Pick from 7 health categories" },
     { id: "manual", icon: "✏️", label: "Manual Topic",   desc: "Type your own topic or sentence" },
@@ -367,12 +503,18 @@ function Stage1({ inputMode, setInputMode, selectedBucket, setSelectedBucket, ke
                 const active = batchSize === n;
                 return (
                   <button key={n} onClick={() => setBatchSize(n)}
-                    className="flex-1 rounded-lg border py-2 text-sm font-bold transition-all"
-                    style={{ borderColor: active ? "rgb(var(--accent))" : "rgb(var(--border))", background: active ? "rgb(var(--accent))" : "transparent", color: active ? "#fff" : "rgb(var(--text-faint))" }}>×{n}</button>
+                    className="flex flex-1 flex-col items-center gap-0.5 rounded-lg border py-2 text-sm font-bold leading-none transition-all"
+                    style={{ borderColor: active ? "rgb(var(--accent))" : "rgb(var(--border))", background: active ? "rgb(var(--accent))" : "transparent", color: active ? "#fff" : "rgb(var(--text-faint))" }}>
+                    <span>×{n}</span>
+                    <span className="text-[9px] font-semibold opacity-85">{videoRunCost(n, model)}cr</span>
+                  </button>
                 );
               })}
             </div>
-            <p className="mt-2 text-[10px] text-faint">YouTube scripts are longer — max batch 3</p>
+            <p className="mt-2 text-[10px] text-faint">
+              YouTube scripts are longer — {batchSize} video{batchSize !== 1 ? "s" : ""} · <span className="font-bold text-[rgb(var(--accent))]">{videoRunCost(batchSize, model)} cr</span>
+              {model !== "gemini" && model !== "demo" ? ` (${model} ×${model === "claude" ? "1.5" : "1.3"})` : ""}
+            </p>
           </Card>
         </div>
       </div>
@@ -653,12 +795,12 @@ function RetentionChart() {
 // ════════════════════════════════════════════════════════════════════════════
 // STAGE 5 — Med Quick-Check
 // ════════════════════════════════════════════════════════════════════════════
-function Stage5({ topic, credits }) {
-  const claims = [
-    { ch: "CHAPTER 2", claim: "16h fasting lowers fasting glucose by ~22 points", grade: "Strong", val: 86, sources: 7, color: "#16a34a" },
-    { ch: "CHAPTER 3", claim: "Cells become 44% more insulin-sensitive in 72h", grade: "Moderate", val: 62, sources: 3, color: "#f59e0b" },
-    { ch: "CASE STUDY", claim: "Ramadan fasting safe for most type-2 diabetics", grade: "Moderate", val: 58, sources: 4, color: "#f59e0b" },
-  ];
+function Stage5({ topic, credits, med }) {
+  const { status, results, reports, reportIdx, setReportIdx, onVerify, onReverify, loadStep, model, runCost, reverifyCr } = med;
+  const VSTEPS = ["Searching PubMed database…", "Checking Cochrane Library…", "Running retraction check…", "Checking ICMR / WHO guidelines…", "Analysing evidence quality…", "Building verification report…"];
+  const activeReport = reports?.[reportIdx] || reports?.[0] || null;
+  const scoreColor = (s) => s >= 70 ? "#16a34a" : s >= 40 ? "#f59e0b" : "#ef4444";
+
   return (
     <>
       <StageHeader id={5} title="Verify medical claims" subtitle="PubMed fact-check all claims in your outline before scripting" />
@@ -671,45 +813,109 @@ function Stage5({ topic, credits }) {
                 <p className="text-sm font-bold text-[rgb(var(--text))]">{topic.title}</p>
                 <span className="mt-1 inline-block rounded-full bg-[rgb(var(--accent))]/10 px-2 py-0.5 text-[10px] font-bold text-[rgb(var(--accent))]">{styleLabel(topic.style)}</span>
               </div>
+              {status === "done" && (
+                <button onClick={onReverify} className="rounded-lg border border-[rgb(var(--border))] px-3 py-1.5 text-[11px] font-semibold text-faint transition hover:text-soft">🔄 Re-verify ({reverifyCr}cr)</button>
+              )}
             </div>
-            <button className="mb-4 w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-500">Verify Medical Claims →</button>
-            <div className="space-y-2">
-              {claims.map((c, i) => (
-                <div key={i} className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel-soft))] p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-faint">{c.ch}</span>
-                    <span className="rounded-full bg-[rgb(var(--bg))] px-2 py-0.5 text-[10px] font-bold text-faint">📄 {c.sources} sources</span>
-                  </div>
-                  <p className="mt-1 text-[12px] text-[rgb(var(--text))]">{c.claim}</p>
-                  <div className="mt-2"><Bar label={`${c.grade} evidence`} value={c.val} color={c.color} /></div>
+
+            {/* IDLE — claims awaiting verification */}
+            {status === "idle" && (
+              <>
+                <button onClick={onVerify} className="mb-4 w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-500">🔬 Verify Medical Claims ({CLAIMS.length} claims) →</button>
+                <div className="space-y-2">
+                  {CLAIMS.map((c, i) => (
+                    <div key={i} className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel-soft))] p-3">
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-faint">{c.ch}</span>
+                      <p className="mt-1 text-[12px] text-[rgb(var(--text))]">{c.claim}</p>
+                      <div className="mt-2"><Bar label="Unverified" value={50} color="#6b7280" /></div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2 text-[10px] text-faint">
-              <span className="rounded-full bg-[rgb(var(--panel-soft))] px-2 py-1">12 credits</span>
-              <span className="rounded-full bg-[rgb(var(--panel-soft))] px-2 py-1">Education format</span>
-              <span className="rounded-full bg-[rgb(var(--panel-soft))] px-2 py-1">PubMed verified</span>
-            </div>
+              </>
+            )}
+
+            {/* RUNNING — animated pipeline */}
+            {status === "running" && (
+              <div className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel-soft))] p-4 space-y-1.5">
+                <p className="mb-2 text-[11px] font-bold text-faint">Running medical verification pipeline…</p>
+                {VSTEPS.map((s, i) => (
+                  <div key={i} className="flex items-center gap-2.5" style={{ opacity: i > loadStep ? 0.3 : 1 }}>
+                    {i < loadStep ? <span className="w-5 text-center text-[13px] text-emerald-500">✓</span>
+                      : i === loadStep ? <Loader2 size={13} className="animate-spin text-[#2563eb]" style={{ width: 20 }} />
+                      : <span className="w-5 text-center text-[11px] text-faint">○</span>}
+                    <span className="text-[12px] text-[rgb(var(--text))]">{s}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* DONE — per-claim scores + rich report */}
+            {status === "done" && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  {results.map((r, i) => (
+                    <button key={i} onClick={() => setReportIdx(i)} className="w-full rounded-xl border p-3 text-left transition"
+                      style={{ borderColor: i === reportIdx ? scoreColor(r.evidenceScore) : "rgb(var(--border))", background: i === reportIdx ? scoreColor(r.evidenceScore) + "0d" : "rgb(var(--panel-soft))" }}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-faint">{r.chapter}</span>
+                        <span className="text-[10px] font-bold" style={{ color: scoreColor(r.evidenceScore) }}>
+                          {r.evidenceScore >= 70 ? "Strong" : r.evidenceScore >= 40 ? "Moderate" : "Weak"} · {r.evidenceScore}/100 · Grade {r.evidenceGrade ?? "—"}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[12px] text-[rgb(var(--text))]">{r.claim}</p>
+                      <div className="mt-2"><Bar label={`${r.studyCount ?? 0} studies`} value={r.evidenceScore} color={scoreColor(r.evidenceScore)} /></div>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Rich report for the selected claim */}
+                {activeReport && (
+                  <div className="space-y-3 rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel-soft))] p-3.5">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-[rgb(var(--accent))]">Key Finding</p>
+                      <p className="mt-1 text-[12px] leading-relaxed text-[rgb(var(--text))]">{activeReport.key_finding}</p>
+                    </div>
+                    {activeReport.sources?.length > 0 && (
+                      <div>
+                        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-soft">Research Sources ({activeReport.sources.length})</p>
+                        <div className="space-y-1.5">
+                          {activeReport.sources.slice(0, 5).map((s, si) => (
+                            <div key={si} className="flex items-start gap-2 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel))] p-2">
+                              <span className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: s.tier === "green" ? "#16a34a" : s.tier === "accent" ? "rgb(var(--accent))" : "#d97706" }} />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[11px] font-medium text-[rgb(var(--text))]">{s.title}</p>
+                                <p className="text-[10px] text-faint">{s.source} · {s.year ?? "n/a"} · {s.study_type}{s.pmid ? ` · PMID ${s.pmid}` : ""}</p>
+                              </div>
+                              {s.url && <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-faint hover:text-[rgb(var(--accent))]"><ExternalLink size={12} /></a>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-3 text-[11px] text-faint">
+                      <span>📄 {activeReport.papers_found ?? 0} papers</span>
+                      <span>🧪 {(activeReport.study_types_found || []).length} study types</span>
+                      <span style={{ color: activeReport.safe_to_publish ? "#16a34a" : "#d97706" }}>{activeReport.safe_to_publish ? "✓ Safe to publish" : "⚠ Review first"}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </Card>
         </div>
 
         {/* RIGHT 1fr — 3 cards */}
         <div className="space-y-4">
           <Card label="Model">
-            <div className="space-y-2">
-              {[["✦ Gemini", true], ["◆ Claude", false], ["⚙ Custom", false]].map(([l, active]) => (
-                <div key={l} className="rounded-lg border px-3 py-2 text-[12px] font-semibold"
-                  style={{ borderColor: active ? "rgb(var(--accent))" : "rgb(var(--border))", background: active ? "rgba(37,99,235,0.08)" : "transparent", color: active ? "rgb(var(--accent))" : "rgb(var(--text-faint))" }}>
-                  {l}{active && <span className="ml-1 text-emerald-500">●</span>}
-                </div>
-              ))}
+            <div className="rounded-lg border border-[rgb(var(--accent))] bg-[rgba(37,99,235,0.08)] px-3 py-2 text-[12px] font-semibold capitalize text-[rgb(var(--accent))]">
+              {model === "demo" ? "Demo (sample data)" : model} <span className="ml-1 text-emerald-500">●</span>
             </div>
           </Card>
           <Card label="Cost">
             <div className="flex items-baseline gap-1">
-              <span className="text-3xl font-black text-[rgb(var(--text))]">12</span><span className="text-sm font-bold text-faint">cr</span>
+              <span className="text-3xl font-black text-[rgb(var(--text))]">{runCost}</span><span className="text-sm font-bold text-faint">cr</span>
             </div>
-            <p className="mt-1 text-[11px] text-faint">1 topic × 12cr (longer script)</p>
+            <p className="mt-1 text-[11px] text-faint">Full Stage 1→7 run · model: <span className="capitalize">{model}</span></p>
             <div className="my-2 h-px bg-[rgb(var(--border))]" />
             <p className="text-[10px] text-faint">{credits} credits remaining</p>
           </Card>
@@ -849,7 +1055,7 @@ function Stage6({ topic, expanded, setExpanded }) {
 // ════════════════════════════════════════════════════════════════════════════
 // STAGE 7 — Final Output
 // ════════════════════════════════════════════════════════════════════════════
-function Stage7({ topic, shoot, setShoot, openSection, setOpenSection }) {
+function Stage7({ topic, shoot, setShoot, openSection, setOpenSection, runSpend = 0, model = "gemini", demoMode = false, credits = 0 }) {
   const sections = [
     { id: "script", icon: "📄", title: "Full Script", meta: "1,480 words · ~9:50 read", body: (
       <>
@@ -920,6 +1126,18 @@ function Stage7({ topic, shoot, setShoot, openSection, setOpenSection }) {
 
         {/* RIGHT 1fr — 3 cards */}
         <div className="space-y-4">
+          <Card label="Total Spent — This Run">
+            <div className="flex items-baseline gap-1">
+              <span className="text-3xl font-black text-[rgb(var(--text))]">{runSpend}</span><span className="text-sm font-bold text-faint">cr</span>
+            </div>
+            <p className="mt-1 text-[11px] text-faint">
+              Full Stage 1→7 run · model: <span className="capitalize">{model}</span>
+              {model !== "gemini" && model !== "demo" ? ` (×${model === "claude" ? "1.5" : "1.3"} vs Gemini)` : ""}
+            </p>
+            <div className="my-2 h-px bg-[rgb(var(--border))]" />
+            <p className="text-[10px] text-faint">{demoMode ? "Demo — no real API charge" : `≈ ₹${runSpend} real cost`} · {credits} credits remaining</p>
+          </Card>
+
           <Card label="Pack Complete">
             <div className="mb-2 flex items-center gap-2">
               <span className="grid h-6 w-6 place-items-center rounded-full bg-emerald-500 text-white"><Check size={14} strokeWidth={3} /></span>

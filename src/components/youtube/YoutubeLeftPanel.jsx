@@ -70,8 +70,10 @@ export default function YoutubeLeftPanel({
   onGoToStage,
   demoMode = false,
   onToggleDemoMode,
+  model = "gemini",          // lifted to the page so cost displays stay in sync
+  onModelChange,
 }) {
-  const [modelPref, setModelPref] = useState("gemini");
+  const modelPref = model;
   const [apiStatus, setApiStatus] = useState({ gemini: false, claude: false, chatgpt: false });
 
   useEffect(() => {
@@ -87,7 +89,7 @@ export default function YoutubeLeftPanel({
 
   function handleModelSelect(id) {
     if (demoMode || !apiStatus[id]) return;
-    setModelPref(id);
+    onModelChange?.(id);
   }
 
   function getStatus(id) {

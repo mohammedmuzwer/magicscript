@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Check, Loader2, ArrowRight } from "lucide-react";
+import { reelRunCost } from "@/lib/reels/creditCosts";
 
 // Stage 4 = script generation only. Medical verification (PubMed + WHO) happens
 // in Stage 3; here it is shown as an INHERITED pass-through, never re-scanned.
@@ -20,7 +21,7 @@ const STEPS = [
  * @param {boolean} props.awaitingMed  true when med-check is done and we're
  *                                     waiting for the user to click the gate
  */
-export default function GenerationPipeline({ status, activeStep, awaitingMed = false, reelProgress = { current: 0, total: 0 } }) {
+export default function GenerationPipeline({ status, activeStep, awaitingMed = false, reelProgress = { current: 0, total: 0 }, model = "gemini" }) {
   if (status === "idle") return null;
 
   const isBatch = reelProgress.total > 1;
@@ -30,7 +31,7 @@ export default function GenerationPipeline({ status, activeStep, awaitingMed = f
       <div className="mb-4 flex items-center justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-wider text-faint">
-            {awaitingMed ? "Awaiting your approval" : "Generating..."}
+            {awaitingMed ? "Awaiting your approval" : status === "done" ? "Pipeline complete" : "Generating..."}
           </p>
           {isBatch && reelProgress.current > 0 && (
             <p className="mt-0.5 text-sm font-bold text-[#2563eb]">
@@ -91,11 +92,9 @@ export default function GenerationPipeline({ status, activeStep, awaitingMed = f
                   }`}>
                     {step.label}
                   </span>
-                  {step.cr > 0 && (
-                    <span className="rounded-md bg-[rgb(var(--bg-soft))] px-1.5 py-0.5 text-[10px] font-bold text-faint">
-                      {step.cr}cr
-                    </span>
-                  )}
+                  {/* Per-step cost is no longer charged individually — the whole
+                      Stage 1→5 run is priced by batch size (shown in the footer).
+                      Only the genuinely free/inherited steps keep a badge. */}
                   {step.cr === 0 && (
                     <span className="rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold text-emerald-400">
                       FREE
@@ -121,13 +120,18 @@ export default function GenerationPipeline({ status, activeStep, awaitingMed = f
         })}
       </div>
 
-      {/* Total credit tally */}
-      <div className="mt-4 flex items-center justify-between border-t border-[rgb(var(--border))] pt-3 text-xs">
-        <span className="text-faint">Total cost</span>
-        <span className="font-bold text-[#2563eb]">
-          {isBatch && reelProgress.total > 0 ? `${reelProgress.total * 8} credits (${reelProgress.total} × 8cr)` : "8 credits"}
-        </span>
-      </div>
+      {/* Total credit tally — only while generating; once done the "Total Spent"
+          card (Stage 5) shows the authoritative figure, so we hide this to avoid
+          three duplicate cost cards. */}
+      {status !== "done" && (
+        <div className="mt-4 flex items-center justify-between border-t border-[rgb(var(--border))] pt-3 text-xs">
+          <span className="text-faint">Total cost</span>
+          <span className="font-bold text-[#2563eb]">
+            {reelRunCost(reelProgress.total || 1, model)} credits
+            {(reelProgress.total || 1) > 1 ? ` (${reelProgress.total} reels)` : ""}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
