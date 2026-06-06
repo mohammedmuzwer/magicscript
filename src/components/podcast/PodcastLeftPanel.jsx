@@ -2,17 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle2, Lock, Circle, ShieldAlert, KeyRound, Zap } from "lucide-react";
+import { CheckCircle2, Lock, Circle, ShieldAlert, KeyRound } from "lucide-react";
 import { PODCAST_STAGES } from "@/lib/podcast/stages";
 import { getModelPref, DEFAULT_MODEL_PREFS } from "@/lib/podcast/model-preference";
-
-// ── Credit costs (Gemini base × multiplier) ───────────────────────────────────
-const PODCAST_BASE_CREDITS = 20; // full 10-stage run at Gemini rate
-const MODEL_MULTIPLIER = { gemini: 1, claude: 1.5, demo: 1 };
-
-function podcastCost(model = "gemini") {
-  return Math.round(PODCAST_BASE_CREDITS * (MODEL_MULTIPLIER[model] ?? 1));
-}
 
 // ── API key + enabled helpers ─────────────────────────────────────────────────
 const PANEL_MODELS = [
@@ -96,7 +88,6 @@ export default function PodcastLeftPanel({
   onGoToStage,
   demoMode = false,
   onToggleDemoMode,
-  userCredits = 0,
 }) {
   const [apiStatus,     setApiStatus]     = useState({ gemini: false, claude: false });
   const [activeModel,   setActiveModel]   = useState("gemini");
@@ -139,9 +130,7 @@ export default function PodcastLeftPanel({
     return stageId <= maxApproved + 1 ? "available" : "locked";
   }
 
-  const progress    = approvedStages.length / PODCAST_STAGES.length;
-  const displayModel = demoMode ? "demo" : activeModel;
-  const runCost      = podcastCost(displayModel);
+  const progress = approvedStages.length / PODCAST_STAGES.length;
 
   return (
     <aside className="hidden w-[200px] shrink-0 flex-col border-r border-[rgb(var(--border))] bg-[rgb(var(--bg-soft))] lg:flex">
@@ -189,27 +178,6 @@ export default function PodcastLeftPanel({
             onClick={onGoToStage}
           />
         ))}
-      </div>
-
-      {/* ── Credits display ── */}
-      <div className="border-t border-[rgb(var(--border))] px-3 pt-3 pb-2">
-        <p className="text-[10px] font-bold uppercase tracking-[0.07em] text-faint flex items-center gap-1 mb-2">
-          <Zap size={9} className="text-[rgb(var(--accent))]" /> Est. Cost
-        </p>
-        <div className="rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel))] px-3 py-2">
-          <div className="flex items-baseline gap-1">
-            <span className="text-xl font-black text-[rgb(var(--text))]">{runCost}</span>
-            <span className="text-xs font-bold text-faint">cr</span>
-            {displayModel !== "gemini" && displayModel !== "demo" && (
-              <span className="text-[9px] text-faint ml-1">
-                ({displayModel} ×{displayModel === "claude" ? "1.5" : "1.3"})
-              </span>
-            )}
-          </div>
-          <p className="text-[10px] text-faint mt-0.5">Full 10-stage run</p>
-          <div className="h-px bg-[rgb(var(--border))] my-1.5" />
-          <p className="text-[10px] text-faint">{userCredits} cr remaining</p>
-        </div>
       </div>
 
       {/* ── Model selector ── */}

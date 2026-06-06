@@ -33,6 +33,13 @@ import Stage10 from "@/components/podcast/stages/Stage10";
 import { PODCAST_STAGES } from "@/lib/podcast/stages";
 import { savePodcastEpisode, getPodcastEpisode } from "@/lib/supabaseClient";
 import { TAB_STATE_KEYS, saveTabState, loadTabState } from "@/lib/tabState";
+import { getModelPref } from "@/lib/podcast/model-preference";
+
+const PODCAST_BASE_CREDITS = 20;
+const MODEL_MULTIPLIER = { gemini: 1, claude: 1.5, demo: 1 };
+function podcastCost(model = "gemini") {
+  return Math.round(PODCAST_BASE_CREDITS * (MODEL_MULTIPLIER[model] ?? 1));
+}
 
 const STAGE_COMPONENTS = {
   1:  Stage1,  2:  Stage2,  3:  Stage3,  4:  Stage4,  5:  Stage5,
@@ -64,6 +71,20 @@ export default function PodcastPage() {
   const [dbSaveState,    setDbSaveState]    = useState("idle");
   const [menuOpen,       setMenuOpen]       = useState(false);
   const [demoMode,       setDemoMode]       = useState(false); // false = live (use Gemini key), true = demo
+  const [activeModel,    setActiveModel]    = useState("gemini"); // tracks current stage model for cost display
+
+  // ── Sync active model when stage changes or inline toggle fires ────────────
+  useEffect(() => {
+    setActiveModel(getModelPref(currentStage));
+  }, [currentStage]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.detail?.stageNum === currentStage) setActiveModel(e.detail.model);
+    };
+    window.addEventListener("modelPrefChange", handler);
+    return () => window.removeEventListener("modelPrefChange", handler);
+  }, [currentStage]);
 
   // ── History hydration ──────────────────────────────────────────────────────
   // When the URL has ?load=<uuid>, fetch the saved episode from Supabase
@@ -310,7 +331,6 @@ export default function PodcastPage() {
           onGoToStage={handleGoToStage}
           demoMode={demoMode}
           onToggleDemoMode={toggleDemoMode}
-          userCredits={user?.credits ?? 0}
         />
 
         {/* CENTER — Stage Content */}
@@ -340,6 +360,15 @@ export default function PodcastPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {/* Est. cost chip */}
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--panel))] px-3 py-1">
+                  <Zap size={10} className="text-[rgb(var(--accent))]" />
+                  <span className="text-[11px] font-bold text-[rgb(var(--text))]">
+                    {podcastCost(demoMode ? "demo" : activeModel)} cr
+                  </span>
+                  <span className="text-[10px] text-faint">est.</span>
+                </div>
+
                 {/* Demo mode toggle */}
                 <button
                   onClick={toggleDemoMode}
