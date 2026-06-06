@@ -310,6 +310,7 @@ export default function PodcastPage() {
           onGoToStage={handleGoToStage}
           demoMode={demoMode}
           onToggleDemoMode={toggleDemoMode}
+          userCredits={user?.credits ?? 0}
         />
 
         {/* CENTER — Stage Content */}

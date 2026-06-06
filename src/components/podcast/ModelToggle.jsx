@@ -15,8 +15,8 @@ function isApiEnabled(lsKey) {
 }
 
 const MODEL_META = {
-  gemini: { lsKey: "V_KEY_GOOGLE",  label: "Gemini", activeClass: "bg-cyan/15 text-cyan border border-cyan/30 shadow-sm",                   dot: "bg-cyan" },
-  claude: { lsKey: "V_KEY_CLAUDE",  label: "Claude", activeClass: "bg-violet-500/15 text-violet-400 border border-violet-500/30 shadow-sm", dot: "bg-violet-400" },
+  gemini: { lsKey: "V_KEY_GOOGLE",  label: "Gemini", activeClass: "bg-blue-600/15 text-blue-500 border border-blue-500/30 shadow-sm",       dot: "bg-blue-500" },
+  claude: { lsKey: "V_KEY_CLAUDE",  label: "Claude", activeClass: "bg-violet-500/15 text-violet-500 border border-violet-500/30 shadow-sm", dot: "bg-violet-500" },
 };
 
 /**
@@ -100,7 +100,7 @@ export default function ModelToggle({ stageNum, onChange, disabled = false, clas
                   : "text-faint hover:text-soft"
               }`}
             >
-              <span className={`h-1.5 w-1.5 rounded-full transition-colors ${isSelected && !isBlocked ? meta.dot : "bg-faint/30"}`} />
+              <span className={`h-1.5 w-1.5 rounded-full transition-colors ${isSelected && !isBlocked ? meta.dot : "bg-[rgb(var(--text-faint))]/30"}`} />
               {meta.label}
               {isPaused && <span style={{ fontSize: 8, fontWeight: 700, color: "#d97706", marginLeft: 2 }}>OFF</span>}
               {noKey    && <KeyRound size={8} className="text-faint/50 ml-0.5" />}
