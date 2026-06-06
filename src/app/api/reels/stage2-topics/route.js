@@ -824,8 +824,8 @@ export async function POST(req) {
     // L1 capped at 4s so it never blocks the LLM call.
     // LLM uses Gemini by default (fast JSON, ~3-5s) falling back to Claude.
     // ══════════════════════════════════════════════════════════════════
-    // 25 topics × ~200 tokens each = ~5000 tokens minimum for complete JSON
-    const scaledMaxTokens = Math.ceil(6000 * (finalCategories.length / ALL_CATEGORIES.length));
+    // 25 topics × ~250 tokens each = ~6250 tokens + JSON overhead → use 8192 (model max)
+    const scaledMaxTokens = 8192;
 
     // Run L1 signals and LLM in parallel to save time
     const [l1Result, llmResult] = await Promise.all([
@@ -841,7 +841,7 @@ export async function POST(req) {
           system:      SYSTEM,
           user:        buildPrompt(keyword, null, { tamilContext, usedTopics, finalCategories }),
           temperature: 0.9,
-          maxTokens:   Math.max(scaledMaxTokens, 4000),
+          maxTokens:   8192,
           isJson:      true,
         }),
         new Promise((_, rej) => setTimeout(() => rej(new Error("LLM timeout")), 50000)),

@@ -78,7 +78,7 @@ export async function callClaude(apiKey, systemPrompt, userPrompt, isJson = true
       "No trailing commas. The very first character of your response must be { or [."
     : systemPrompt;
 
-  const MAX_RETRIES    = 4;
+  const MAX_RETRIES    = 2; // Reduced — fail fast, don't hang 30s on parse errors
   const RETRYABLE_HTTP = new Set([429, 500, 529]);
   let lastError;
 

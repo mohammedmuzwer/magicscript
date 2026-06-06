@@ -38,7 +38,7 @@ export async function callGemini(apiKey, model, systemPrompt, userPrompt, temper
   });
 
   // ── Retry loop: up to 4 attempts with exponential backoff ──────────────────
-  const MAX_RETRIES = 4;
+  const MAX_RETRIES = 2; // Reduced from 4 — fail fast, don't hang for 21s on JSON errors
   const RETRYABLE_CODES = new Set([429, 500, 503]);
   let lastError;
 
@@ -77,14 +77,18 @@ export async function callGemini(apiKey, model, systemPrompt, userPrompt, temper
     const outputPart = parts.find((p) => !p.thought && typeof p.text === "string") ?? parts[0];
     let   text       = outputPart?.text ?? "";
 
+    const finishReason = data.candidates?.[0]?.finishReason ?? "unknown";
     if (!text) {
-      const reason = data.candidates?.[0]?.finishReason ?? "unknown";
       lastError = new Error(
-        `Gemini returned empty response (finishReason: ${reason}). ` +
+        `Gemini returned empty response (finishReason: ${finishReason}). ` +
         `The prompt may have been blocked or the model returned no output.`
       );
-      if (reason === "RECITATION" || reason === "SAFETY") throw lastError;
+      if (finishReason === "RECITATION" || finishReason === "SAFETY") throw lastError;
       continue;
+    }
+    // Log when model hits token limit — this causes truncated JSON
+    if (finishReason === "MAX_TOKENS") {
+      console.warn(`[gemini] Response truncated at maxTokens limit — increase maxTokens. Length: ${text.length} chars`);
     }
 
     // ── Plain-text mode: return raw prose directly ────────────────────────────
