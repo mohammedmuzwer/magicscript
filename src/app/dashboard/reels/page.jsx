@@ -499,11 +499,32 @@ export default function ReelsPage() {
 
   const getHeaders = () => {
     if (typeof window === "undefined") return { "Content-Type": "application/json" };
-    const gk = localStorage.getItem("V_KEY_GOOGLE") || localStorage.getItem("ms_gemini_key");
-    const ak = localStorage.getItem("V_KEY_CLAUDE") || localStorage.getItem("ms_anthropic_key");
-    const ok = localStorage.getItem("ms_openai_key");
-    const stagePref = (() => { try { const p = JSON.parse(localStorage.getItem("REELS_MODEL_PREFS_v1") || "{}"); return p[4] ?? p[3] ?? "claude"; } catch { return "claude"; } })();
-    return { "Content-Type": "application/json", ...(gk && { "x-client-gemini-key": gk }), ...(ak && { "x-client-anthropic-key": ak }), ...(ok && { "x-client-openai-key": ok }), "x-preferred-model": stagePref };
+    // Only send a key if it exists AND its ON/OFF toggle is enabled
+    const geminiEnabled  = localStorage.getItem("V_KEY_GOOGLE_ENABLED")  !== "false";
+    const claudeEnabled  = localStorage.getItem("V_KEY_CLAUDE_ENABLED")  !== "false";
+    const chatgptEnabled = localStorage.getItem("V_KEY_GPT_ENABLED")     !== "false";
+    const gk = geminiEnabled  ? (localStorage.getItem("V_KEY_GOOGLE")  || localStorage.getItem("ms_gemini_key"))   : null;
+    const ak = claudeEnabled  ? (localStorage.getItem("V_KEY_CLAUDE")  || localStorage.getItem("ms_anthropic_key")): null;
+    const ok = chatgptEnabled ? (localStorage.getItem("V_KEY_GPT")     || localStorage.getItem("ms_openai_key"))   : null;
+    // If user's Claude key is missing but server has ANTHROPIC_API_KEY, use claude-internal
+    const stagePref = (() => {
+      try {
+        const p    = JSON.parse(localStorage.getItem("REELS_MODEL_PREFS_v1") || "{}");
+        const pref = p[4] ?? p[3] ?? "claude";
+        // If preferred model key is disabled/missing, fall back to next available
+        if (pref === "gemini"  && !gk && ak) return "claude";
+        if (pref === "claude"  && !ak && gk) return "gemini";
+        if (pref === "chatgpt" && !ok)        return ak ? "claude" : gk ? "gemini" : "claude";
+        return pref;
+      } catch { return "claude"; }
+    })();
+    return {
+      "Content-Type": "application/json",
+      ...(gk && { "x-client-gemini-key":    gk }),
+      ...(ak && { "x-client-anthropic-key": ak }),
+      ...(ok && { "x-client-openai-key":    ok }),
+      "x-preferred-model": stagePref,
+    };
   };
 
   const flattenPool = (pool) => {
