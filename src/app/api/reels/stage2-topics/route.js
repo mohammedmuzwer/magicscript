@@ -820,41 +820,54 @@ export async function POST(req) {
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // LEVEL 1 — Demand Signals (YouTube + Reddit)
-    // Cached for 5 min per keyword — same keyword re-runs are instant.
-    // Non-blocking: if all fail, pipeline continues with LLM estimates.
+    // LEVEL 1 + LEVEL 2 — Run demand signals and LLM IN PARALLEL
+    // L1 capped at 4s so it never blocks the LLM call.
+    // LLM uses Gemini by default (fast JSON, ~3-5s) falling back to Claude.
     // ══════════════════════════════════════════════════════════════════
-    try {
-      // Cap Level 1 at 8s — never let signal fetching block the LLM call
-      demandContext = await Promise.race([
-        runLevel1SignalsCached(keyword),
-        new Promise((_, rej) => setTimeout(() => rej(new Error("L1 timeout")), 8000)),
-      ]);
-    } catch (e) {
-      console.warn("[stage2/L1] Demand signals failed (non-fatal):", e.message);
-    }
+    const scaledMaxTokens = Math.ceil(2400 * (finalCategories.length / ALL_CATEGORIES.length));
 
-    // ══════════════════════════════════════════════════════════════════
-    // LEVEL 2 — LLM Topic Generation with real demand context
-    // Capped at 20s — falls back to demo if LLM hangs.
-    // ══════════════════════════════════════════════════════════════════
-    // Scale max tokens based on number of categories (fewer cats = fewer tokens needed)
-    const scaledMaxTokens = Math.ceil(3000 * (finalCategories.length / ALL_CATEGORIES.length));
-
-    const llmResult = await Promise.race([
-      reelsLlmCall(req, {
-        system:      SYSTEM,
-        user:        buildPrompt(keyword, demandContext, { tamilContext, usedTopics, finalCategories }),
-        temperature: 0.9,
-        maxTokens:   Math.max(scaledMaxTokens, 800),
-        isJson:      true,
-      }),
-      new Promise((_, rej) => setTimeout(() => rej(new Error("LLM timeout")), 50000)),
-    ]).catch(e => {
-      console.warn("[stage2] LLM failed:", e.message);
-      return { parsed: null, source: "demo" };
+    // Build a Gemini-preferred request — Gemini Flash returns JSON in ~3-5s
+    // vs Claude which needs 20-30s. For topic scoring, speed > voice quality.
+    const geminiPreferredReq = new Proxy(req, {
+      get(target, prop) {
+        if (prop === "headers") {
+          return new Proxy(target.headers, {
+            get(h, name) {
+              if (name === "get") return (key) => {
+                if (key === "x-preferred-model") return "gemini";
+                return target.headers.get(key);
+              };
+              return Reflect.get(h, name);
+            }
+          });
+        }
+        return Reflect.get(target, prop);
+      }
     });
-    const { parsed, source, fallback_from, fallback_reason } = llmResult;
+
+    // Run L1 signals and LLM in parallel — whoever finishes first wins
+    const [l1Result, llmResult] = await Promise.all([
+      // L1 signals — capped at 4s (non-fatal if it loses the race)
+      Promise.race([
+        runLevel1SignalsCached(keyword),
+        new Promise((_, rej) => setTimeout(() => rej(new Error("L1 timeout")), 4000)),
+      ]).catch(e => { console.warn("[stage2/L1] Demand signals:", e.message); return null; }),
+
+      // LLM — tries Gemini first (fast), falls back to Claude via reelsLlmCall
+      Promise.race([
+        reelsLlmCall(geminiPreferredReq, {
+          system:      SYSTEM,
+          user:        buildPrompt(keyword, null, { tamilContext, usedTopics, finalCategories }),
+          temperature: 0.9,
+          maxTokens:   Math.max(scaledMaxTokens, 800),
+          isJson:      true,
+        }),
+        new Promise((_, rej) => setTimeout(() => rej(new Error("LLM timeout")), 50000)),
+      ]).catch(e => { console.warn("[stage2] LLM failed:", e.message); return { parsed: null, source: "demo" }; }),
+    ]);
+
+    demandContext = l1Result;
+    const { parsed, source, fallback_from, fallback_reason } = llmResult ?? {};
 
     if (parsed) {
       // ══════════════════════════════════════════════════════════════
