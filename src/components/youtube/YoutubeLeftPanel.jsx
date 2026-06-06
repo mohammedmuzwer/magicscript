@@ -17,6 +17,12 @@ function hasKey(lsKeys) {
   return lsKeys.some((k) => !!localStorage.getItem(k));
 }
 
+function isEnabled(lsKeys) {
+  if (typeof window === "undefined") return true;
+  const primaryKey = lsKeys[0];
+  return localStorage.getItem(primaryKey + "_ENABLED") !== "false";
+}
+
 // ── Stage row — each dot uses the stage's own vibrant colour ──────────────────
 function StageRow({ stage, status, onClick }) {
   const isApproved = status === "approved";
@@ -78,13 +84,17 @@ export default function YoutubeLeftPanel({
 
   useEffect(() => {
     const check = () => setApiStatus({
-      gemini:  hasKey(MODELS[0].lsKeys),
-      claude:  hasKey(MODELS[1].lsKeys),
-      chatgpt: hasKey(MODELS[2].lsKeys),
+      gemini:  hasKey(MODELS[0].lsKeys) && isEnabled(MODELS[0].lsKeys),
+      claude:  hasKey(MODELS[1].lsKeys) && isEnabled(MODELS[1].lsKeys),
+      chatgpt: hasKey(MODELS[2].lsKeys) && isEnabled(MODELS[2].lsKeys),
     });
     check();
     window.addEventListener("storage", check);
-    return () => window.removeEventListener("storage", check);
+    window.addEventListener("apiEnabledChange", check);
+    return () => {
+      window.removeEventListener("storage", check);
+      window.removeEventListener("apiEnabledChange", check);
+    };
   }, []);
 
   function handleModelSelect(id) {
@@ -146,15 +156,26 @@ export default function YoutubeLeftPanel({
         </p>
         <div className="flex flex-col gap-1">
           {MODELS.map((m) => {
-            const hasApiKey  = apiStatus[m.id];
-            const isSelected = modelPref === m.id;
-            const isDisabled = demoMode || !hasApiKey;
+            const hasApiKey   = hasKey(m.lsKeys);
+            const apiEnabled  = apiStatus[m.id];
+            const isPaused    = hasApiKey && !apiEnabled && !demoMode;
+            const isSelected  = modelPref === m.id;
+            const isDisabled  = demoMode || !apiEnabled;
+
+            const tooltip = demoMode
+              ? "Disabled in demo mode"
+              : isPaused
+              ? `${m.label} is paused — go to Settings → API Keys and turn it ON`
+              : !hasApiKey
+              ? m.settingsHint
+              : `Use ${m.label}`;
+
             return (
               <button
                 key={m.id}
                 onClick={() => handleModelSelect(m.id)}
                 disabled={isDisabled}
-                title={isDisabled ? (demoMode ? "Disabled in demo mode" : m.settingsHint) : `Use ${m.label}`}
+                title={tooltip}
                 className={`w-full rounded-lg border px-2.5 py-1.5 text-left text-[11px] font-semibold transition-all ${
                   isDisabled
                     ? "cursor-not-allowed border-[rgb(var(--border))] bg-[rgb(var(--panel-soft))] opacity-40"
@@ -165,6 +186,7 @@ export default function YoutubeLeftPanel({
               >
                 <span className="flex items-center justify-between gap-1">
                   <span className="flex items-center gap-1.5"><span>{m.icon}</span><span>{m.label}</span></span>
+                  {isPaused && <span style={{ fontSize: 8, fontWeight: 700, color: "#d97706" }}>OFF</span>}
                   {!hasApiKey && !demoMode && <KeyRound size={9} className="shrink-0 text-faint/50" />}
                   {demoMode && <Lock size={9} className="shrink-0 text-faint/50" />}
                 </span>

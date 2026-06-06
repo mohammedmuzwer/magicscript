@@ -467,6 +467,8 @@ export default function ApiKeyManagementDesk() {
     const next = !enabled[id];
     localStorage.setItem(lsKey + ENABLED_SUFFIX, String(next));
     setEnabled(p => ({ ...p, [id]: next }));
+    // Notify other panels (ReelsLeftPanel, YoutubeLeftPanel) to re-check
+    window.dispatchEvent(new CustomEvent("apiEnabledChange", { detail: { id, enabled: next } }));
   }
 
   function save(id, lsKey) {
