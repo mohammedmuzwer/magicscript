@@ -827,36 +827,17 @@ export async function POST(req) {
     // 25 topics × ~200 tokens each = ~5000 tokens minimum for complete JSON
     const scaledMaxTokens = Math.ceil(6000 * (finalCategories.length / ALL_CATEGORIES.length));
 
-    // Build a Gemini-preferred request — Gemini Flash returns JSON in ~3-5s
-    // vs Claude which needs 20-30s. For topic scoring, speed > voice quality.
-    const geminiPreferredReq = new Proxy(req, {
-      get(target, prop) {
-        if (prop === "headers") {
-          return new Proxy(target.headers, {
-            get(h, name) {
-              if (name === "get") return (key) => {
-                if (key === "x-preferred-model") return "gemini";
-                return target.headers.get(key);
-              };
-              return Reflect.get(h, name);
-            }
-          });
-        }
-        return Reflect.get(target, prop);
-      }
-    });
-
-    // Run L1 signals and LLM in parallel — whoever finishes first wins
+    // Run L1 signals and LLM in parallel to save time
     const [l1Result, llmResult] = await Promise.all([
-      // L1 signals — capped at 4s (non-fatal if it loses the race)
+      // L1 signals — capped at 4s (non-fatal)
       Promise.race([
         runLevel1SignalsCached(keyword),
         new Promise((_, rej) => setTimeout(() => rej(new Error("L1 timeout")), 4000)),
       ]).catch(e => { console.warn("[stage2/L1] Demand signals:", e.message); return null; }),
 
-      // LLM — tries Gemini first (fast), falls back to Claude via reelsLlmCall
+      // LLM — respects user's model preference (Gemini or Claude)
       Promise.race([
-        reelsLlmCall(geminiPreferredReq, {
+        reelsLlmCall(req, {
           system:      SYSTEM,
           user:        buildPrompt(keyword, null, { tamilContext, usedTopics, finalCategories }),
           temperature: 0.9,
