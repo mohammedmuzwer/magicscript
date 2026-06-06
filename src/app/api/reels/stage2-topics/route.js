@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { generateMockStage2Topics } from "@/lib/reels/mockStage2Topics";
 import { reelsLlmCall } from "@/lib/reels/llm";
+
+// Allow up to 60s on Pro / Hobby respects what it can
+export const maxDuration = 60;
 import { getEvidenceReport, extractMedicalQuery } from "@/lib/pubmed";
 import { getYouTubeDemandReport } from "@/lib/youtube";
 import { getRedditSocialSignals } from "@/lib/reddit-public";
@@ -797,7 +800,7 @@ export async function POST(req) {
           maxTokens:   1200,
           isJson:      true,
         }),
-        new Promise((_, rej) => setTimeout(() => rej(new Error("LLM timeout")), 15000)),
+        new Promise((_, rej) => setTimeout(() => rej(new Error("LLM timeout")), 40000)),
       ]).catch(e => { console.warn("[stage2/category] LLM failed:", e.message); return { parsed: null, source: "demo" }; });
 
       const parsed = catResult?.parsed;
@@ -846,7 +849,7 @@ export async function POST(req) {
         maxTokens:   Math.max(scaledMaxTokens, 800),
         isJson:      true,
       }),
-      new Promise((_, rej) => setTimeout(() => rej(new Error("LLM timeout")), 20000)),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("LLM timeout")), 50000)),
     ]).catch(e => {
       console.warn("[stage2] LLM failed:", e.message);
       return { parsed: null, source: "demo" };

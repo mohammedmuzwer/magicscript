@@ -1,3 +1,5 @@
+export const maxDuration = 60;
+
 /**
  * Stage 3 — Enhanced Medical Verification + Rich Report
  *

@@ -1,3 +1,5 @@
+export const maxDuration = 60;
+
 /**
  * Stage 4 — Structured Script Generation
  *
