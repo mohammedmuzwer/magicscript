@@ -1,8 +1,24 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle2, Lock, Circle, ShieldAlert } from "lucide-react";
+import { CheckCircle2, Lock, Circle, ShieldAlert, KeyRound } from "lucide-react";
 import { PODCAST_STAGES } from "@/lib/podcast/stages";
+
+// ── API key + enabled helpers ─────────────────────────────────────────────────
+const PANEL_MODELS = [
+  { id: "gemini", label: "Gemini", icon: "✦", lsKey: "V_KEY_GOOGLE", activeClass: "bg-cyan/15 text-cyan border-cyan/30",         settingsHint: "Add a Google AI key in Settings → API" },
+  { id: "claude", label: "Claude", icon: "◆", lsKey: "V_KEY_CLAUDE", activeClass: "bg-violet-500/15 text-violet-400 border-violet-500/30", settingsHint: "Add an Anthropic key in Settings → API" },
+];
+
+function hasKey(lsKey) {
+  if (typeof window === "undefined") return false;
+  return !!localStorage.getItem(lsKey);
+}
+function isApiEnabled(lsKey) {
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem(lsKey + "_ENABLED") !== "false";
+}
 
 function StageRow({ stage, status, isCurrent, onClick }) {
   // status: "locked" | "active" | "approved" | "available"
@@ -58,7 +74,23 @@ function StageRow({ stage, status, isCurrent, onClick }) {
   );
 }
 
-export default function PodcastLeftPanel({ currentStage, approvedStages, onGoToStage }) {
+export default function PodcastLeftPanel({ currentStage, approvedStages, onGoToStage, demoMode = false, onToggleDemoMode }) {
+  const [apiStatus, setApiStatus] = useState({ gemini: false, claude: false });
+
+  useEffect(() => {
+    const check = () => setApiStatus({
+      gemini: hasKey("V_KEY_GOOGLE") && isApiEnabled("V_KEY_GOOGLE"),
+      claude: hasKey("V_KEY_CLAUDE") && isApiEnabled("V_KEY_CLAUDE"),
+    });
+    check();
+    window.addEventListener("storage", check);
+    window.addEventListener("apiEnabledChange", check);
+    return () => {
+      window.removeEventListener("storage", check);
+      window.removeEventListener("apiEnabledChange", check);
+    };
+  }, []);
+
   function getStatus(stageId) {
     if (approvedStages.includes(stageId)) return "approved";
     if (stageId === currentStage)         return "active";
@@ -107,6 +139,67 @@ export default function PodcastLeftPanel({ currentStage, approvedStages, onGoToS
             onClick={onGoToStage}
           />
         ))}
+      </div>
+
+      {/* Model selector + Live API toggle */}
+      <div className="border-t border-[rgb(var(--border))] px-3 pt-3 pb-2 space-y-2">
+        <p className="text-[10px] font-bold uppercase tracking-[0.07em] text-faint">
+          {demoMode ? "Model (demo mode)" : "Model"}
+        </p>
+        <div className="flex flex-col gap-1">
+          {PANEL_MODELS.map((m) => {
+            const keyExists  = hasKey(m.lsKey);
+            const apiEnabled = apiStatus[m.id];
+            const isPaused   = keyExists && !apiEnabled && !demoMode;
+            const isDisabled = demoMode || !apiEnabled;
+            const tooltip    = demoMode
+              ? "Disabled in demo mode"
+              : isPaused
+              ? `${m.label} is paused — go to Settings → API Keys and turn it ON`
+              : !keyExists
+              ? m.settingsHint
+              : `${m.label} is active`;
+
+            return (
+              <div
+                key={m.id}
+                title={tooltip}
+                className={`flex items-center justify-between rounded-lg border px-2.5 py-1.5 text-[11px] font-medium ${
+                  isDisabled
+                    ? "opacity-40 border-[rgb(var(--border))] bg-[rgb(var(--panel-soft))]"
+                    : `border-[rgb(var(--border))] bg-[rgb(var(--panel-soft))] ${m.activeClass}`
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <span>{m.icon}</span>
+                  <span className={isDisabled ? "text-faint" : ""}>{m.label}</span>
+                </span>
+                <span className="flex items-center gap-1">
+                  {isPaused   && <span style={{ fontSize: 8, fontWeight: 700, color: "#d97706" }}>OFF</span>}
+                  {!keyExists && !demoMode && <KeyRound size={9} className="text-faint/50" />}
+                  {!isDisabled && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Live API / Demo toggle */}
+        {onToggleDemoMode && (
+          <button
+            onClick={onToggleDemoMode}
+            className={`mt-1 flex w-full items-center justify-between rounded-xl border px-3 py-2 transition-all duration-200 ${
+              demoMode ? "border-orange-400/30 bg-orange-400/10" : "border-emerald-500/30 bg-emerald-500/10"
+            }`}
+          >
+            <span className={`text-[11px] font-bold tracking-wide ${demoMode ? "text-orange-400" : "text-emerald-400"}`}>
+              {demoMode ? "Demo" : "Live API"}
+            </span>
+            <div style={{ position: "relative", width: 52, height: 28, borderRadius: 14, flexShrink: 0, backgroundColor: demoMode ? "#fb923c" : "#22c55e", transition: "background-color 0.25s ease" }}>
+              <div style={{ position: "absolute", top: 2, left: 2, width: 24, height: 24, borderRadius: "50%", backgroundColor: "#ffffff", boxShadow: "0 2px 4px rgba(0,0,0,0.3)", transform: demoMode ? "translateX(24px)" : "translateX(0px)", transition: "transform 0.25s ease" }} />
+            </div>
+          </button>
+        )}
       </div>
 
       {/* Legend */}

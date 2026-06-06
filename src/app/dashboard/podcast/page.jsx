@@ -308,6 +308,8 @@ export default function PodcastPage() {
           currentStage={currentStage}
           approvedStages={approvedStages}
           onGoToStage={handleGoToStage}
+          demoMode={demoMode}
+          onToggleDemoMode={toggleDemoMode}
         />
 
         {/* CENTER — Stage Content */}
