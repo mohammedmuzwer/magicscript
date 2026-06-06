@@ -9,7 +9,14 @@ export const LS_KEY_GPT     = "V_KEY_GPT";
 export const LS_KEY_GOOGLE  = "V_KEY_GOOGLE";
 export const LS_KEY_YOUTUBE = "V_KEY_YOUTUBE";
 export const LS_KEY_PUBMED  = "V_KEY_PUBMED";
-const TS_SUFFIX = "_SAVED_AT";
+const TS_SUFFIX      = "_SAVED_AT";
+export const ENABLED_SUFFIX = "_ENABLED";
+
+// Helper — read whether an API is enabled (call from anywhere in the app)
+export function isApiEnabled(lsKey) {
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem(lsKey + ENABLED_SUFFIX) !== "false";
+}
 
 const LS_MAP = {
   claude:  LS_KEY_CLAUDE,
@@ -81,6 +88,43 @@ function SectionLabel({ emoji, label, desc }) {
 
 // ─── Full API card — flex-column so input anchors to bottom ──────────────────
 
+function ToggleSwitch({ enabled, onChange, disabled }) {
+  return (
+    <button
+      type="button"
+      onClick={() => !disabled && onChange(!enabled)}
+      title={disabled ? "Connect a key first" : enabled ? "Click to disable" : "Click to enable"}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 5,
+        background: "none", border: "none", cursor: disabled ? "not-allowed" : "pointer",
+        padding: 0, opacity: disabled ? 0.4 : 1,
+      }}
+    >
+      {/* Track */}
+      <div style={{
+        width: 32, height: 18, borderRadius: 999,
+        background: enabled ? "#16a34a" : "rgba(107,114,128,0.30)",
+        position: "relative",
+        transition: "background 0.2s",
+        flexShrink: 0,
+      }}>
+        {/* Thumb */}
+        <div style={{
+          position: "absolute", top: 2,
+          left: enabled ? 16 : 2,
+          width: 14, height: 14, borderRadius: "50%",
+          background: "#ffffff",
+          transition: "left 0.2s",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+        }} />
+      </div>
+      <span style={{ fontSize: 10, fontWeight: 600, color: enabled ? "#16a34a" : "rgba(107,114,128,0.7)" }}>
+        {enabled ? "ON" : "OFF"}
+      </span>
+    </button>
+  );
+}
+
 function ApiCard({
   name, model,
   mainBadge, mainBadgeStyle,
@@ -88,10 +132,13 @@ function ApiCard({
   description, tags, placeholder, docsUrl,
   pipelineNote, extraNote,
   isConnected, isSaved, savedAtTs, keyValue, showKey,
+  isEnabled, onToggleEnabled,
   onChange, onToggle, onSave, onClear,
 }) {
-  const leftBorderColor = isConnected
+  const leftBorderColor = isConnected && isEnabled
     ? "#16a34a"
+    : isConnected && !isEnabled
+    ? "#d97706"
     : (requiredLabel && requiredLabel.startsWith("Required")) ? "#dc2626"
     : "rgb(var(--border))";
 
@@ -151,6 +198,20 @@ function ApiCard({
           )}
 
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto" }}>
+            {/* ON/OFF toggle — only show when a key is stored */}
+            {isConnected && (
+              <ToggleSwitch enabled={isEnabled} onChange={onToggleEnabled} />
+            )}
+            {isConnected && !isEnabled && (
+              <span style={{
+                fontSize: 8, fontWeight: 700, borderRadius: 999, padding: "1px 6px",
+                textTransform: "uppercase", letterSpacing: "0.04em",
+                background: "rgba(217,119,6,0.10)", color: "#d97706",
+                border: "1px solid rgba(217,119,6,0.20)",
+              }}>
+                Paused
+              </span>
+            )}
             {savedAtTs && (
               <span className="text-faint" style={{ fontSize: 9 }}>
                 Saved {timeAgo(savedAtTs)}
@@ -366,9 +427,11 @@ export default function ApiKeyManagementDesk() {
   const [saved,   setSaved]   = useState({ claude: false, google: false, gpt: false, youtube: false, pubmed: false });
   const [stored,  setStored]  = useState({ claude: false, google: false, gpt: false, youtube: false, pubmed: false });
   const [savedAt, setSavedAt] = useState({ claude: null,  google: null,  gpt: null,  youtube: null,  pubmed: null });
+  const [enabled, setEnabled] = useState({ claude: true,  google: true,  gpt: true,  youtube: true,  pubmed: true });
 
   useEffect(() => {
     const g = k => localStorage.getItem(k) || "";
+    const getBool = k => localStorage.getItem(k) !== "false"; // default ON
     const loaded = {
       claude:  g(LS_KEY_CLAUDE),
       google:  g(LS_KEY_GOOGLE),
@@ -391,7 +454,20 @@ export default function ApiKeyManagementDesk() {
       youtube: localStorage.getItem(LS_KEY_YOUTUBE + TS_SUFFIX),
       pubmed:  localStorage.getItem(LS_KEY_PUBMED  + TS_SUFFIX),
     });
+    setEnabled({
+      claude:  getBool(LS_KEY_CLAUDE  + ENABLED_SUFFIX),
+      google:  getBool(LS_KEY_GOOGLE  + ENABLED_SUFFIX),
+      gpt:     getBool(LS_KEY_GPT     + ENABLED_SUFFIX),
+      youtube: getBool(LS_KEY_YOUTUBE + ENABLED_SUFFIX),
+      pubmed:  getBool(LS_KEY_PUBMED  + ENABLED_SUFFIX),
+    });
   }, []);
+
+  function toggleEnabled(id, lsKey) {
+    const next = !enabled[id];
+    localStorage.setItem(lsKey + ENABLED_SUFFIX, String(next));
+    setEnabled(p => ({ ...p, [id]: next }));
+  }
 
   function save(id, lsKey) {
     const v = keys[id].trim();
@@ -423,15 +499,17 @@ export default function ApiKeyManagementDesk() {
   const optionalMissingCount = OPTIONAL_IDS.filter(id => !stored[id]).length;
 
   const cp = (id, lsKey) => ({
-    isConnected: stored[id],
-    isSaved:     saved[id],
-    savedAtTs:   savedAt[id],
-    keyValue:    keys[id],
-    showKey:     visible[id],
-    onChange:    e  => setKeys(p    => ({ ...p, [id]: e.target.value })),
-    onToggle:    () => setVisible(p => ({ ...p, [id]: !p[id] })),
-    onSave:      () => save(id, lsKey),
-    onClear:     () => clear(id, lsKey),
+    isConnected:      stored[id],
+    isSaved:          saved[id],
+    savedAtTs:        savedAt[id],
+    keyValue:         keys[id],
+    showKey:          visible[id],
+    isEnabled:        enabled[id],
+    onChange:         e  => setKeys(p    => ({ ...p, [id]: e.target.value })),
+    onToggle:         () => setVisible(p => ({ ...p, [id]: !p[id] })),
+    onSave:           () => save(id, lsKey),
+    onClear:          () => clear(id, lsKey),
+    onToggleEnabled:  () => toggleEnabled(id, lsKey),
   });
 
   return (
