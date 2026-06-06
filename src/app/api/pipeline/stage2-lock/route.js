@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { generateMockStage2Lock } from "@/lib/podcast/mockData";
 import { callGemini, GEMINI_MODELS } from "@/lib/podcast/gemini";
 import { callClaude } from "@/lib/podcast/claude";
-import { resolveAnthropicKey, modeLabel } from "@/lib/podcast/key-resolver";
+import { resolveAnthropicKey, resolveGeminiKey, modeLabel } from "@/lib/podcast/key-resolver";
 
 // ── Doctor Farmer Pipeline Stage 2 — Topic Lock Engine ───────────────────────
 const SYSTEM = `You are Stage 2 — Topic Lock — of the Doctor Farmer MagicScript Podcast Pipeline.
@@ -185,7 +185,7 @@ export async function POST(req) {
     topic_data       = null,
   } = body;
 
-  const geminiKey    = req.headers.get("x-client-gemini-key");
+  const geminiKey    = resolveGeminiKey(req);
   const anthropicKey = resolveAnthropicKey(req);
 
   try {

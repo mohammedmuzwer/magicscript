@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { generateMockStage1Topics } from "@/lib/podcast/mockData";
 import { callGemini, GEMINI_MODELS } from "@/lib/podcast/gemini";
 import { callClaude } from "@/lib/podcast/claude";
-import { resolveAnthropicKey, modeLabel } from "@/lib/podcast/key-resolver";
+import { resolveAnthropicKey, resolveGeminiKey, modeLabel } from "@/lib/podcast/key-resolver";
 
 // ── Doctor Farmer Pipeline Stage 1 — Topic Discovery Engine ──────────────────
 const SYSTEM = `You are Stage 1 — Topic Discovery — of the Doctor Farmer MagicScript Podcast Pipeline.
@@ -231,7 +231,7 @@ export async function POST(req) {
     excludeTitles = [],   // titles to AVOID — passed by client from history + vault
   } = body;
 
-  const geminiKey    = req.headers.get("x-client-gemini-key");
+  const geminiKey    = resolveGeminiKey(req);
   const anthropicKey = resolveAnthropicKey(req);   // honours "claude-internal"
 
   // Unique per-request variety seed so the model never deterministically

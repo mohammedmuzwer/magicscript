@@ -24,7 +24,9 @@ export async function reelsLlmCall(req, {
   maxTokens   = 1200,
   isJson      = true,
 }) {
-  const geminiKey    = req.headers.get("x-client-gemini-key");
+  // Client key takes priority; fall back to server env vars so the app works
+  // even when the user hasn't added keys in their browser's API Keys page.
+  const geminiKey    = req.headers.get("x-client-gemini-key") || process.env.GOOGLE_AI_KEY || null;
   const anthropicKey = resolveAnthropicKey(req);
   // Default to Claude for reels because hook/script writing benefits from
   // Claude's voice — but always respect the user's per-stage preference.

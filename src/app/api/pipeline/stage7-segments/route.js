@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { MOCK_STAGE7_SEGMENTS } from "@/lib/podcast/mockData";
 import { callGemini, GEMINI_MODELS } from "@/lib/podcast/gemini";
 import { callClaude } from "@/lib/podcast/claude";
-import { resolveAnthropicKey, modeLabel } from "@/lib/podcast/key-resolver";
+import { resolveAnthropicKey, resolveGeminiKey, modeLabel } from "@/lib/podcast/key-resolver";
 
 // ── Doctor Farmer Pipeline Stage 7 — Segments & Engagement ───────────────────
 
@@ -140,7 +140,7 @@ export async function POST(req) {
     total_runtime_min = 30,
   } = body;
 
-  const geminiKey    = req.headers.get("x-client-gemini-key");
+  const geminiKey    = resolveGeminiKey(req);
   const anthropicKey = resolveAnthropicKey(req);
 
   try {

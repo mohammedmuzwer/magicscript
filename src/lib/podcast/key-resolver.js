@@ -13,15 +13,28 @@
 
 /**
  * Resolves which Anthropic API key to use for this request.
- * - If preferred=claude-internal, returns the server's ANTHROPIC_API_KEY (or null if unset)
- * - Otherwise, returns the browser-supplied x-client-anthropic-key header (or null)
+ * Priority:
+ *   1. Browser-supplied x-client-anthropic-key (user's own key)
+ *   2. Server-side ANTHROPIC_API_KEY env var (fallback — always available on Vercel)
+ *
+ * This means the app works even when the user hasn't added a Claude key in
+ * their browser's API Keys page — the Vercel env var acts as the safety net.
  */
 export function resolveAnthropicKey(req) {
-  const preferred = req.headers.get("x-preferred-model");
-  if (preferred === "claude-internal") {
-    return process.env.ANTHROPIC_API_KEY || null;
-  }
-  return req.headers.get("x-client-anthropic-key") || null;
+  const clientKey = req.headers.get("x-client-anthropic-key");
+  if (clientKey) return clientKey;
+  // Fall back to server env var so the app never returns null just because
+  // the user hasn't stored a key in localStorage on this device.
+  return process.env.ANTHROPIC_API_KEY || null;
+}
+
+/**
+ * Resolves the Gemini key: client header → server GOOGLE_AI_KEY env var.
+ */
+export function resolveGeminiKey(req) {
+  const clientKey = req.headers.get("x-client-gemini-key");
+  if (clientKey) return clientKey;
+  return process.env.GOOGLE_AI_KEY || null;
 }
 
 /**

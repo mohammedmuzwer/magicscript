@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { callGemini, GEMINI_MODELS } from "@/lib/podcast/gemini";
 import { callClaude } from "@/lib/podcast/claude";
-import { resolveAnthropicKey, modeLabel } from "@/lib/podcast/key-resolver";
+import { resolveAnthropicKey, resolveGeminiKey, modeLabel } from "@/lib/podcast/key-resolver";
 
 // ── Doctor Farmer Pipeline — Stage Chat ──────────────────────────────────────
 // Answers questions, explains reasoning, and suggests tweaks for any stage.
@@ -52,7 +52,7 @@ export async function POST(req) {
     return NextResponse.json({ reply: "Please type a message.", mode: "error" });
   }
 
-  const geminiKey    = req.headers.get("x-client-gemini-key");
+  const geminiKey    = resolveGeminiKey(req);
   const anthropicKey = resolveAnthropicKey(req);   // honours "claude-internal"
 
   // ── Demo mode ──────────────────────────────────────────────────────────────

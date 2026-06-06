@@ -392,8 +392,8 @@ export async function POST(req) {
   if (!topics.length) return NextResponse.json({ error: "No topics" }, { status: 400 });
 
   // Demo detection — no API keys
-  const geminiKey = req.headers.get("x-client-gemini-key");
-  const claudeKey = req.headers.get("x-client-anthropic-key");
+  const geminiKey = req.headers.get("x-client-gemini-key") || process.env.GOOGLE_AI_KEY || null;
+  const claudeKey = req.headers.get("x-client-anthropic-key") || process.env.ANTHROPIC_API_KEY || null;
   const pubmedKey = process.env.NCBI_API_KEY || process.env.PUBMED_API_KEY;
   if (!geminiKey && !claudeKey && !pubmedKey) {
     await new Promise(r => setTimeout(r, 900));

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { generateMockStage4Research } from "@/lib/podcast/mockData";
 import { callGemini, GEMINI_MODELS } from "@/lib/podcast/gemini";
 import { callClaude } from "@/lib/podcast/claude";
-import { resolveAnthropicKey, modeLabel } from "@/lib/podcast/key-resolver";
+import { resolveAnthropicKey, resolveGeminiKey, modeLabel } from "@/lib/podcast/key-resolver";
 import { getEvidenceReport, extractMedicalQuery } from "@/lib/pubmed";
 
 // ── Extend Vercel/Next timeout to 5 min — large research jobs need it ─────────
@@ -308,7 +308,7 @@ export async function POST(req) {
     pre_verified_facts  = [],   // from Verified Fact Library — injected by the component
   } = body;
 
-  const geminiKey    = req.headers.get("x-client-gemini-key");
+  const geminiKey    = resolveGeminiKey(req);
   const anthropicKey = resolveAnthropicKey(req);
 
   // ── Fetch real PubMed articles for this topic (always, regardless of mode) ─

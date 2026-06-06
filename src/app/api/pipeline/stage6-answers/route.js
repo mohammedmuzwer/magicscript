@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { generateMockStage6Answers } from "@/lib/podcast/mockData";
 import { callGemini, GEMINI_MODELS } from "@/lib/podcast/gemini";
 import { callClaude, CLAUDE_MODELS, DR_PRABHAKAR_PERSONA } from "@/lib/podcast/claude";
-import { resolveAnthropicKey, modeLabel } from "@/lib/podcast/key-resolver";
+import { resolveAnthropicKey, resolveGeminiKey, modeLabel } from "@/lib/podcast/key-resolver";
 
 // ── Doctor Farmer Pipeline Stage 6 — Answer Writer ────────────────────────────
 // PREPEND ADJUSTMENT 1 (spoken podcast format)
@@ -397,7 +397,7 @@ export async function POST(req) {
   const resolvedAngle      = angle ?? lock_data?.angle?.frame;
   const resolvedViewer     = primary_viewer ?? lock_data?.audience?.primary;
 
-  const geminiKey    = req.headers.get("x-client-gemini-key");
+  const geminiKey    = resolveGeminiKey(req);
   const anthropicKey = resolveAnthropicKey(req);
 
   try {

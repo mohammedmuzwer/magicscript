@@ -119,7 +119,7 @@ export async function POST(req) {
     stage9_data  = null,
   } = body;
 
-  const geminiKey = req.headers.get("x-client-gemini-key");
+  const geminiKey = resolveGeminiKey(req);
 
   try {
     // ── Demo mode ──────────────────────────────────────────────────────────

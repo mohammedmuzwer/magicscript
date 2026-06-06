@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { generateMockStage5Arc } from "@/lib/podcast/mockData";
 import { callGemini, GEMINI_MODELS } from "@/lib/podcast/gemini";
 import { callClaude } from "@/lib/podcast/claude";
-import { resolveAnthropicKey, modeLabel } from "@/lib/podcast/key-resolver";
+import { resolveAnthropicKey, resolveGeminiKey, modeLabel } from "@/lib/podcast/key-resolver";
 
 // ── Doctor Farmer Pipeline Stage 5 — Question Lock & Sequencing ──────────────
 const SYSTEM = `You are Stage 5 — Question Lock & Sequencing — of the Doctor Farmer MagicScript Pipeline.
@@ -203,7 +203,7 @@ export async function POST(req) {
     signals      = null,
   } = body;
 
-  const geminiKey    = req.headers.get("x-client-gemini-key");
+  const geminiKey    = resolveGeminiKey(req);
   const anthropicKey = resolveAnthropicKey(req);
 
   try {

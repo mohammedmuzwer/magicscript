@@ -272,7 +272,9 @@ export async function POST(req) {
 
   // ── Demo mode — no API keys ────────────────────────────────────────────
   const hasKey = req.headers.get("x-client-anthropic-key") ||
+                 process.env.ANTHROPIC_API_KEY              ||
                  req.headers.get("x-client-gemini-key")    ||
+                 process.env.GOOGLE_AI_KEY                  ||
                  req.headers.get("x-client-openai-key");
   if (!hasKey) {
     await new Promise((r) => setTimeout(r, 600));
