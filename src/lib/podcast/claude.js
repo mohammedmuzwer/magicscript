@@ -131,11 +131,14 @@ export async function callClaude(apiKey, systemPrompt, userPrompt, isJson = true
       throw new Error(`Claude HTTP ${res.status}: ${res.statusText}`);
     }
 
-    const rawText = data.content?.[0]?.text ?? "";
+    const rawText  = data.content?.[0]?.text ?? "";
+    const stopReason = data.stop_reason ?? "unknown";
+    if (stopReason === "max_tokens") {
+      console.warn(`[claude] Response truncated — hit max_tokens limit. Length: ${rawText.length} chars. Increase maxTokens.`);
+    }
     if (!rawText) {
-      const reason = data.stop_reason ?? "unknown";
-      lastError = new Error(`Claude returned empty response (stop_reason: ${reason}).`);
-      if (reason === "max_tokens") throw lastError; // not retryable
+      lastError = new Error(`Claude returned empty response (stop_reason: ${stopReason}).`);
+      if (stopReason === "max_tokens") throw lastError; // not retryable
       continue;
     }
 

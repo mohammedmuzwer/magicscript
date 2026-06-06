@@ -697,10 +697,16 @@ export default function Stage2TopicMatrix({ topic, bucket, batchSize = 1, select
       ? (localStorage.getItem("V_KEY_GOOGLE") || localStorage.getItem("ms_gemini_key"))
       : null;
     const ok = typeof window !== "undefined" ? localStorage.getItem("ms_openai_key") : null;
+    // Prefer Gemini for topic generation (faster JSON), fall back to Claude
+    const geminiEnabled = typeof window !== "undefined"
+      ? localStorage.getItem("V_KEY_GOOGLE_ENABLED") !== "false"
+      : true;
+    const preferredModel = (gk && geminiEnabled) ? "gemini" : ak ? "claude" : "gemini";
     const res = await fetch("/api/reels/stage2-topics", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "x-preferred-model": preferredModel,
         ...(ak && { "x-client-anthropic-key": ak }),
         ...(gk && { "x-client-gemini-key":    gk }),
         ...(ok && { "x-client-openai-key":    ok }),
