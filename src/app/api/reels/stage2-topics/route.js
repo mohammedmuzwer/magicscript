@@ -797,7 +797,7 @@ export async function POST(req) {
           system:      SYSTEM,
           user:        buildCategoryPrompt(keyword, category, demandContext, { tamilContext, usedTopics }),
           temperature: 0.9,
-          maxTokens:   1200,
+          maxTokens:   2000,
           isJson:      true,
         }),
         new Promise((_, rej) => setTimeout(() => rej(new Error("LLM timeout")), 40000)),
@@ -824,7 +824,8 @@ export async function POST(req) {
     // L1 capped at 4s so it never blocks the LLM call.
     // LLM uses Gemini by default (fast JSON, ~3-5s) falling back to Claude.
     // ══════════════════════════════════════════════════════════════════
-    const scaledMaxTokens = Math.ceil(2400 * (finalCategories.length / ALL_CATEGORIES.length));
+    // 25 topics × ~200 tokens each = ~5000 tokens minimum for complete JSON
+    const scaledMaxTokens = Math.ceil(6000 * (finalCategories.length / ALL_CATEGORIES.length));
 
     // Build a Gemini-preferred request — Gemini Flash returns JSON in ~3-5s
     // vs Claude which needs 20-30s. For topic scoring, speed > voice quality.
@@ -859,7 +860,7 @@ export async function POST(req) {
           system:      SYSTEM,
           user:        buildPrompt(keyword, null, { tamilContext, usedTopics, finalCategories }),
           temperature: 0.9,
-          maxTokens:   Math.max(scaledMaxTokens, 800),
+          maxTokens:   Math.max(scaledMaxTokens, 4000),
           isJson:      true,
         }),
         new Promise((_, rej) => setTimeout(() => rej(new Error("LLM timeout")), 50000)),
